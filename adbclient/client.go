@@ -4,24 +4,49 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/reactivex/rxgo/v2"
+	"it.sephiroth/adbclient/activitymanager"
 	"it.sephiroth/adbclient/connection"
+	"it.sephiroth/adbclient/events"
 	"it.sephiroth/adbclient/mdns"
+	"it.sephiroth/adbclient/shell"
 	"it.sephiroth/adbclient/transport"
 	"it.sephiroth/adbclient/types"
 )
 
 type Client[T types.Serial] struct {
-	Conn   *connection.Connection
-	Mdns   *mdns.Mdns
-	Serial T
+	Conn    *connection.Connection
+	Mdns    *mdns.Mdns
+	Channel chan rxgo.Item
+	Serial  T
 }
 
-func NewClientSerial[T types.Serial](device T) *Client[T] {
+func NewClient[T types.Serial](device T) *Client[T] {
 	client := new(Client[T])
 	client.Conn = connection.NewConnection()
 	client.Mdns = mdns.NewMdns(client.Conn)
 	client.Serial = device
+	client.Channel = make(chan rxgo.Item)
 	return client
+}
+
+func (c Client[T]) ActivityManager() *activitymanager.ActivityManager[T] {
+	return &activitymanager.ActivityManager[T]{
+		Shell: c.Shell(),
+	}
+}
+
+func (c Client[T]) Shell() *shell.Shell[T] {
+	var s = shell.NewShell(&c.Conn.ADBPath, c.Serial)
+	return s
+}
+
+func (c Client[T]) DeferredDispatch(eventType events.EventType) {
+	defer func() { go func() { c.Channel <- rxgo.Of(events.AdbEvent{Event: eventType}) }() }()
+}
+
+func (c Client[T]) Dispatch(eventType events.EventType, data interface{}) {
+	go func() { c.Channel <- rxgo.Of(events.AdbEvent{Event: eventType, Item: data}) }()
 }
 
 func WaitAndReturn(result *transport.Result, err error, timeout time.Duration) (transport.Result, error) {
@@ -44,17 +69,16 @@ func (c Client[T]) Connect() (transport.Result, error) {
 	}
 
 	conn, err = c.IsConnected()
-
 	if err != nil {
 		return transport.ErrorResult("Unable to connect"), err
 	}
 
 	if conn {
+		defer c.Dispatch(events.Connected, c.Serial)
 		return transport.OkResult(fmt.Sprintf("connected to %s", c.Serial.String())), nil
 	} else {
 		return transport.ErrorResult(fmt.Sprintf("Unable to connect to %s", c.Serial.String())), nil
 	}
-
 }
 
 func (c Client[T]) Reconnect() (transport.Result, error) {
@@ -70,7 +94,18 @@ func (c Client[T]) IsConnected() (bool, error) {
 }
 
 func (c Client[T]) Disconnect() (transport.Result, error) {
-	return c.Conn.Disconnect(c.Serial.Serial())
+	connected, err := c.IsConnected()
+	if err == nil && !connected {
+		return transport.OkResult(""), nil
+	}
+
+	result, err := c.Conn.Disconnect(c.Serial.Serial())
+
+	if err == nil && result.IsOk() {
+		defer c.Dispatch(events.Disconnect, c.Serial)
+	}
+
+	return result, err
 }
 
 func (c Client[T]) DisconnectAll() (transport.Result, error) {
@@ -129,7 +164,28 @@ func (c Client[T]) BugReport(dst string) (transport.Result, error) {
 	return WaitAndReturn(&result, err, 0)
 }
 
-// Pull a file(s) from the device
+// Pull a file from the device.
+// src is the file to be pulled from the device.
+// dst is the destination filepath on the host.
 func (c Client[T]) Pull(src string, dst string) (transport.Result, error) {
 	return c.Conn.Pull(c.Serial.Serial(), src, dst)
+}
+
+// Push a file to the connected device.
+// src is the host file to be pushed.
+// dst is the target device where the file should be pushed to.
+func (c Client[T]) Push(src string, dst string) (transport.Result, error) {
+	return c.Conn.Push(c.Serial.Serial(), src, dst)
+}
+
+//
+//
+//
+
+func (c Client[T]) TryIsConnected() bool {
+	result, err := c.IsConnected()
+	if err != nil {
+		return false
+	}
+	return result
 }

@@ -3,9 +3,12 @@ package adbclient_test
 import (
 	"net"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
+	"github.com/alecthomas/repr"
+	"github.com/reactivex/rxgo/v2"
 	"github.com/stretchr/testify/assert"
 
 	"it.sephiroth/adbclient"
@@ -22,7 +25,7 @@ var device_ip = device_ip2
 var log = logging.GetLogger("test")
 
 func NewClient() *adbclient.Client[types.ClientAddr] {
-	return adbclient.NewClientSerial(types.ClientAddr{IP: device_ip, Port: 5555})
+	return adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
 }
 
 func AssertClientConnected[T types.Serial](t *testing.T, client *adbclient.Client[T]) {
@@ -32,7 +35,7 @@ func AssertClientConnected[T types.Serial](t *testing.T, client *adbclient.Clien
 }
 
 func TestIsConnected(t *testing.T) {
-	var client = adbclient.NewClientSerial(types.ClientAddr{IP: device_ip, Port: 5555})
+	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
 	result, err := client.Connect()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
@@ -43,7 +46,7 @@ func TestIsConnected(t *testing.T) {
 }
 
 func TestConnect(t *testing.T) {
-	var client = adbclient.NewClientSerial(types.ClientAddr{IP: device_ip, Port: 5555})
+	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
 
 	result, err := client.Connect()
 	log.Debugf("result=%s", result.ToString())
@@ -68,7 +71,7 @@ func TestConnect(t *testing.T) {
 }
 
 func TestWaitForDevice(t *testing.T) {
-	var client = adbclient.NewClientSerial(types.ClientAddr{IP: device_ip, Port: 5555})
+	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
 
 	result, err := client.Connect()
 	assert.Nil(t, err)
@@ -93,7 +96,7 @@ func TestWaitForDevice(t *testing.T) {
 }
 
 func TestRoot(t *testing.T) {
-	var client = adbclient.NewClientSerial(types.ClientAddr{IP: device_ip, Port: 5555})
+	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
 	result, err := client.Connect()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
@@ -116,7 +119,7 @@ func TestRoot(t *testing.T) {
 }
 
 func TestListDevices(t *testing.T) {
-	var client = adbclient.NewClientSerial(types.ClientAddr{IP: device_ip, Port: 5555})
+	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
 	result, err := client.Connect()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
@@ -131,7 +134,7 @@ func TestListDevices(t *testing.T) {
 }
 
 func TestReboot(t *testing.T) {
-	var client = adbclient.NewClientSerial(types.ClientAddr{IP: device_ip, Port: 5555})
+	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
 	result, err := client.Connect()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
@@ -154,7 +157,7 @@ func TestReboot(t *testing.T) {
 }
 
 func TestRemount(t *testing.T) {
-	var client = adbclient.NewClientSerial(types.ClientAddr{IP: device_ip, Port: 5555})
+	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
 	result, err := client.Connect()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
@@ -208,7 +211,7 @@ func TestMdns(t *testing.T) {
 
 	assert.True(t, len(devices) > 0)
 
-	client2 := adbclient.NewClientSerial(devices[1])
+	client2 := adbclient.NewClient(devices[1])
 	result, err = client2.Connect()
 	assert.Nil(t, err)
 	log.Debug(result)
@@ -245,7 +248,62 @@ func TestPull(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk(), result.GetOutput())
-
 	client.UnRoot()
+	client.DisconnectAll()
+}
+
+func TestPush(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	result, err := client.Push("../README.md", "/sdcard/Download")
+	assert.Nil(t, err)
+	assert.Truef(t, result.IsOk(), "result: %s", result.Repr())
+
 	client.Disconnect()
+}
+
+func TestWhich(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	result, err := client.Shell().Execute("which", "which")
+	assert.Nil(t, err)
+
+	println(result.Repr())
+}
+
+func TestRx(t *testing.T) {
+	var client = NewClient()
+
+	observable := rxgo.FromEventSource(client.Channel)
+
+	observable.DoOnNext(func(i interface{}) {
+		log.Info("onNext:", repr.String(i))
+	})
+
+	observable.DoOnCompleted(func() {
+		log.Info("onComplete")
+	})
+
+	observable.DoOnError(func(err error) {
+		log.Info("onError:", err.Error())
+	})
+
+	client.Disconnect()
+	client.Connect()
+	client.IsConnected()
+	// client.Disconnect()
+
+	client = nil
+	runtime.GC()
+
+	time.Sleep(time.Duration(2) * time.Second)
+}
+
+func TestActivityManager(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	client.ActivityManager().Broadcast(nil)
 }

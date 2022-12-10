@@ -8,6 +8,7 @@ import (
 
 	"it.sephiroth/adbclient/transport"
 	"it.sephiroth/adbclient/types"
+	"it.sephiroth/adbclient/util/constants"
 
 	"pkg.re/essentialkaos/ek.v12/env"
 )
@@ -145,4 +146,19 @@ func (c Connection) BugReport(addr string, dst string) (transport.Result, error)
 
 func (c Connection) Pull(addr string, src string, dst string) (transport.Result, error) {
 	return transport.Invoke(&c.ADBPath, 0, "-s", addr, "pull", src, dst)
+}
+
+func (c Connection) Push(addr string, src string, dst string) (transport.Result, error) {
+	return transport.Invoke(&c.ADBPath, 0, "-s", addr, "push", src, dst)
+}
+
+func (c Connection) Which(addr string, command string) {
+	result, err := transport.Invoke(&c.ADBPath, 0, "-s", addr, constants.WHICH, command)
+
+	if err != nil {
+		println(err.Error())
+		return
+	}
+
+	println("result: %s", result.Repr())
 }
