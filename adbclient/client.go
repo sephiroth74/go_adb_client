@@ -65,7 +65,7 @@ func (c Client[T]) Connect() (transport.Result, error) {
 	result, err := c.Conn.Connect(c.Serial.Serial())
 
 	if err != nil {
-		return transport.ErrorResult(result.GetOutput()), err
+		return transport.ErrorResult(result.Output()), err
 	}
 
 	conn, err = c.IsConnected()
@@ -188,4 +188,30 @@ func (c Client[T]) TryIsConnected() bool {
 		return false
 	}
 	return result
+}
+
+func (c Client[T]) TryIsRoot() bool {
+	if c.TryIsConnected() {
+		result, err := c.IsRoot()
+		if err != nil {
+			return false
+		}
+		return result
+	}
+	return false
+}
+
+func (c Client[T]) TryRoot() bool {
+	if c.TryIsConnected() {
+		if c.TryIsRoot() {
+			return true
+		} else {
+			_, err := c.Root()
+			if err != nil {
+				return false
+			}
+			return c.TryIsRoot()
+		}
+	}
+	return false
 }

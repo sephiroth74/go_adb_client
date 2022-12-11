@@ -27,11 +27,15 @@ func (r Result) IsOk() bool {
 	return r.ExitCode == 0
 }
 
-func (r Result) GetOutput() string {
+func (r Result) Output() string {
 	return strings.TrimSpace(string(r.Stdout))
 }
 
-func (r Result) GetError() string {
+func (r Result) OutputLines() []string {
+	return strings.Split(strings.TrimSpace(string(r.Stdout)), "\n")
+}
+
+func (r Result) Error() string {
 	return strings.TrimSpace(string(r.Stderr))
 }
 

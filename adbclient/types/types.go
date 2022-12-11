@@ -24,6 +24,11 @@ type ClientAddr struct {
 	Port int
 }
 
+type Pair[K interface{}, V interface{}] struct {
+	First  K
+	Second V
+}
+
 func (c ClientAddr) ToString() string {
 	return fmt.Sprintf("%s:%d", c.IP, c.Port)
 }

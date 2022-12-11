@@ -10,5 +10,5 @@ type ActivityManager[T types.Serial] struct {
 }
 
 func (a ActivityManager[T]) Broadcast(intent *types.Intent) {
-	a.Shell.Execute("am", "broadcast", intent.String())
+	a.Shell.Execute("am", 0, "broadcast", intent.String())
 }

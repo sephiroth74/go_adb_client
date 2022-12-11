@@ -34,7 +34,7 @@ func (c Connection) Version() (string, error) {
 		return "", err
 	}
 
-	lines := strings.Split(result.GetOutput(), "\n")
+	lines := strings.Split(result.Output(), "\n")
 
 	if len(lines) > 0 {
 		r := regexp.MustCompile(`.*\s([\w]+\.[\w]+\.[\w]+)`)
@@ -87,7 +87,7 @@ func (c Connection) IsRoot(addr string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return result.GetOutput() == "root", nil
+	return result.Output() == "root", nil
 }
 
 func (c Connection) Reboot(addr string) (transport.Result, error) {
@@ -116,7 +116,7 @@ func (c Connection) ListDevices() ([]*types.Device, error) {
 	var devices = []*types.Device{}
 
 	r := regexp.MustCompile(`(?P<ip>[^\s]+)[\s]+device product:(?P<device_product>[^\s]+)\smodel:(?P<model>[^\s]+)\sdevice:(?P<device>[^\s]+)\stransport_id:(?P<transport_id>[^\s]+)`)
-	lines := strings.Split(result.GetOutput(), "\n")
+	lines := strings.Split(result.Output(), "\n")
 	if len(lines) > 1 {
 		for x := 1; x < len(lines); x++ {
 			m := r.FindStringSubmatch(lines[x])

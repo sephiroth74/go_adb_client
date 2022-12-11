@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/alecthomas/repr v0.1.1
+	github.com/magiconair/properties v1.8.7
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/reactivex/rxgo/v2 v2.5.0
 	github.com/stretchr/testify v1.8.1

@@ -24,7 +24,7 @@ func (m Mdns) Services() ([]types.MdnsDevice, error) {
 		return nil, err
 	}
 
-	lines := strings.Split(result.GetOutput(), "\n")
+	lines := strings.Split(result.Output(), "\n")
 	devices := []types.MdnsDevice{}
 
 	if len(lines) > 1 {

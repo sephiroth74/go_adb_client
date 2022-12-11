@@ -1,8 +1,8 @@
 package util
 
 
-func Map(data []string, f func(string) (byte, error)) ([]byte, error) {
-	mapped := make([]byte, len(data))
+func Map[T interface{}](data []string, f func(string) (T, error)) ([]T, error) {
+	mapped := make([]T, len(data))
 	for i, e := range data {
 		m, err := f(e)
 		if err != nil {

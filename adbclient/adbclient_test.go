@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/repr"
+	"github.com/magiconair/properties"
 	"github.com/reactivex/rxgo/v2"
 	"github.com/stretchr/testify/assert"
 
@@ -31,7 +32,7 @@ func NewClient() *adbclient.Client[types.ClientAddr] {
 func AssertClientConnected[T types.Serial](t *testing.T, client *adbclient.Client[T]) {
 	result, err := client.Connect()
 	assert.Nil(t, err)
-	assert.True(t, result.IsOk(), result.GetOutput())
+	assert.True(t, result.IsOk(), result.Output())
 }
 
 func TestIsConnected(t *testing.T) {
@@ -243,11 +244,11 @@ func TestPull(t *testing.T) {
 		log.Error(err.Error())
 	}
 
-	log.Debugf("output: %s", result.GetOutput())
-	log.Debugf("error: %s", result.GetError())
+	log.Debugf("output: %s", result.Output())
+	log.Debugf("error: %s", result.Error())
 
 	assert.Nil(t, err)
-	assert.True(t, result.IsOk(), result.GetOutput())
+	assert.True(t, result.IsOk(), result.Output())
 	client.UnRoot()
 	client.DisconnectAll()
 }
@@ -267,7 +268,7 @@ func TestWhich(t *testing.T) {
 	var client = NewClient()
 	AssertClientConnected(t, client)
 
-	result, err := client.Shell().Execute("which", "which")
+	result, err := client.Shell().Which("which")
 	assert.Nil(t, err)
 
 	println(result.Repr())
@@ -312,4 +313,63 @@ func TestActivityManager(t *testing.T) {
 	intent.Extra.Eia["key_eia1"] = []int{1, 2, 3}
 
 	client.ActivityManager().Broadcast(intent)
+}
+
+func TestShellCat(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	assert.True(t, client.TryRoot())
+
+	result, err := client.Shell().Whoami()
+	assert.Nil(t, err)
+	assert.Equal(t, "root", result.Output())
+
+	result, err = client.Shell().Cat("/system/build.prop")
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+
+	props, err := properties.Load(result.Stdout, properties.UTF8)
+	assert.Nil(t, err)
+
+	for _, k := range props.Keys() {
+		v, ok := props.Get(k)
+
+		if ok {
+			log.Debugf("%s = %s", k, v)
+		} else {
+			log.Warningf("Error reading key %s", k)
+		}
+	}
+
+	props.Set("ro.config.system_vol_default", "10")
+	assert.Equal(t, 10, props.GetInt("ro.config.system_vol_default", 0))
+}
+
+func TestShellGetProp(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	shell := client.Shell()
+	prop := shell.GetProp("wlan.driver.status")
+	assert.NotNil(t, prop)
+	assert.Equal(t, "ok", *prop)
+
+	prop = shell.GetProp("invalid.key.string")
+	assert.Nil(t, prop)
+}
+
+
+func TestShellGetProps(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	shell := client.Shell()
+	props, err := shell.GetProps()
+	assert.Nil(t, err)
+	assert.True(t, len(props) > 0)
+
+	for _, v := range props {
+		log.Debugf("%s=%s", v.First, v.Second)
+	}
 }
