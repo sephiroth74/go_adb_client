@@ -124,6 +124,7 @@ func NewMdnsDevice(name string, ctype string, addr *string) (*MdnsDevice, error)
 	return mdns, nil
 }
 
+type UserId string
 type Intent struct {
 	Action    string
 	Data      string
@@ -132,6 +133,8 @@ type Intent struct {
 	Component string
 	Flags     int32
 	Extra     Extras
+	UserId    UserId
+	Wait      bool
 }
 
 type Extras struct {
@@ -176,6 +179,14 @@ func (i Intent) String() string {
 
 	if !reflect.DeepEqual(Extras{}, i.Extra) {
 		sb = append(sb, i.Extra.String())
+	}
+
+	if i.UserId != "" {
+		sb = append(sb, fmt.Sprintf("--user %s", i.UserId))
+	}
+
+	if i.Wait {
+		sb = append(sb, "-W")
 	}
 
 	return strings.Join(sb, " ")

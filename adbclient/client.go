@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/reactivex/rxgo/v2"
-	"it.sephiroth/adbclient/activitymanager"
 	"it.sephiroth/adbclient/connection"
 	"it.sephiroth/adbclient/events"
 	"it.sephiroth/adbclient/mdns"
@@ -30,15 +29,16 @@ func NewClient[T types.Serial](device T) *Client[T] {
 	return client
 }
 
-func (c Client[T]) ActivityManager() *activitymanager.ActivityManager[T] {
-	return &activitymanager.ActivityManager[T]{
-		Shell: c.Shell(),
-	}
-}
 
 func (c Client[T]) Shell() *shell.Shell[T] {
 	var s = shell.NewShell(&c.Conn.ADBPath, c.Serial)
 	return s
+}
+
+func (c Client[T]) NewProcess() *transport.ProcessBuilder[T] {
+	pb := transport.NewProcessBuilder(c.Serial)
+	pb.Path(&c.Conn.ADBPath)
+	return pb
 }
 
 func (c Client[T]) DeferredDispatch(eventType events.EventType) {

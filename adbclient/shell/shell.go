@@ -2,6 +2,7 @@ package shell
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -25,7 +26,19 @@ func NewShell[T types.Serial](adb *string, serial T) *Shell[T] {
 }
 
 func (s Shell[T]) Execute(command string, timeout time.Duration, args ...string) (transport.Result, error) {
-	return transport.NewProcessBuilder(s.Serial).Path(s.Adb).Command("shell").Timeout(timeout).Args(command).Args(args...).Verbose(false).Invoke()
+	pb := s.NewProcess()
+	pb.Timeout(timeout)
+	pb.Args(command)
+	pb.Args(args...)
+	pb.Verbose(false)
+	return pb.Invoke()
+}
+
+func (s Shell[T]) NewProcess() *transport.ProcessBuilder[T] {
+	pb := transport.NewProcessBuilder(s.Serial)
+	pb.Path(s.Adb)
+	pb.Command("shell")
+	return pb
 }
 
 func (s Shell[T]) Cat(filename string) (transport.Result, error) {
@@ -97,6 +110,36 @@ func (s Shell[T]) SetProp(key string, value string) bool {
 	return result.IsOk()
 }
 
+func (s Shell[T]) Exists(filename string) bool {
+	return testFile(s, filename, "e")
+}
+
+func (s Shell[T]) IsFile(filename string) bool {
+	return testFile(s, filename, "f")
+}
+
+func (s Shell[T]) IsDir(filename string) bool {
+	return testFile(s, filename, "d")
+}
+
+func (s Shell[T]) IsSymlink(filename string) bool {
+	return testFile(s, filename, "h")
+}
+
+func (s Shell[T]) Remove(filename string, force bool) (bool, error) {
+	var command string
+	if force {
+		command = fmt.Sprintf("rm -f %s", filename)
+	} else {
+		command = fmt.Sprintf("rm %s", filename)
+	}
+	result, err := s.Execute(command, 0)
+	if err != nil {
+		return false, nil
+	}
+	return result.IsOk(), nil
+}
+
 //
 
 func parsePropLine(line string) (types.Pair[string, string], error) {
@@ -108,6 +151,14 @@ func parsePropLine(line string) (types.Pair[string, string], error) {
 			Second: m[2],
 		}, nil
 	} else {
-		return types.Pair[string, string]{}, errors.New("Parse exception. Cannot find submatches on the fiven line")
+		return types.Pair[string, string]{}, errors.New("parse exception. cannot find submatches on the fiven line")
 	}
+}
+
+func testFile[T types.Serial](shell Shell[T], filename string, mode string) bool {
+	result, err := shell.Execute(fmt.Sprintf("test -%s %s && echo 1 || echo 0", mode, filename), 0)
+	if err != nil || !result.IsOk() {
+		return false
+	}
+	return result.Output() == "1"
 }

@@ -1,6 +1,9 @@
 package transport
 
 import (
+	"bufio"
+	"os"
+
 	"it.sephiroth/adbclient/logging"
 	"it.sephiroth/adbclient/types"
 
@@ -117,6 +120,7 @@ type ProcessBuilder[T types.Serial] struct {
 	timeout time.Duration
 	command *TransportCommand
 	verbose bool
+	stdout  *os.File
 }
 
 func NewProcessBuilder[T types.Serial](t T) *ProcessBuilder[T] {
@@ -129,37 +133,37 @@ func NewProcessBuilder[T types.Serial](t T) *ProcessBuilder[T] {
 		args:    []string{},
 	}
 	b.verbose = false
+	b.stdout = nil
 	return b
 }
 
-func (p ProcessBuilder[T]) Args(args ...string) *ProcessBuilder[T] {
+func (p *ProcessBuilder[T]) Args(args ...string) {
 	p.command.args = append(p.command.args, args...)
-	return &p
 }
 
-func (p ProcessBuilder[T]) Verbose(value bool) *ProcessBuilder[T] {
+func (p *ProcessBuilder[T]) Verbose(value bool) {
 	p.verbose = value
-	return &p
 }
 
-func (p ProcessBuilder[T]) Timeout(time time.Duration) *ProcessBuilder[T] {
+func (p *ProcessBuilder[T]) Stdout(value *os.File) {
+	p.stdout = value
+}
+
+func (p *ProcessBuilder[T]) Timeout(time time.Duration) {
 	p.timeout = time
-	return &p
 }
 
-func (p ProcessBuilder[T]) Path(path *string) *ProcessBuilder[T] {
+func (p *ProcessBuilder[T]) Path(path *string) {
 	p.command.path = path
-	return &p
 }
 
-func (p ProcessBuilder[T]) Command(command string) *ProcessBuilder[T] {
+func (p *ProcessBuilder[T]) Command(command string) {
 	p.command.command = &command
-	return &p
 }
 
-func (p ProcessBuilder[T]) Invoke() (Result, error) {
+func (p *ProcessBuilder[T]) Invoke() (Result, error) {
 	if p.verbose {
-		log.Debug(repr.String(p.command))
+		log.Debugf(repr.String(p.command))
 	}
 
 	var adb = filepath.Base(*p.command.path)
@@ -173,9 +177,7 @@ func (p ProcessBuilder[T]) Invoke() (Result, error) {
 	final_args = append(final_args, *p.command.command)
 	final_args = append(final_args, p.command.args...)
 
-	if p.verbose {
-		log.Debugf("Executing (timeout=%s) `%s %s`", p.timeout.String(), adb, strings.Join(final_args, " "))
-	}
+	log.Debugf("Executing (timeout=%s) `%s %s`", p.timeout.String(), adb, strings.Join(final_args, " "))
 
 	var cmd *exec.Cmd = nil
 
@@ -190,6 +192,10 @@ func (p ProcessBuilder[T]) Invoke() (Result, error) {
 	var outb, errb bytes.Buffer
 	cmd.Stdout = &outb
 	cmd.Stderr = &errb
+
+	if p.stdout != nil {
+		cmd.Stdout = bufio.NewWriter(p.stdout)
+	}
 
 	err := cmd.Run()
 	exitCode := cmd.ProcessState.ExitCode()

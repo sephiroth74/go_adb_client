@@ -1,7 +1,9 @@
 package adbclient_test
 
 import (
+	"errors"
 	"net"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/alecthomas/repr"
 	"github.com/magiconair/properties"
+	goLogging "github.com/op/go-logging"
 	"github.com/reactivex/rxgo/v2"
 	"github.com/stretchr/testify/assert"
 
@@ -24,6 +27,10 @@ var device_ip2 = net.IPv4(192, 168, 1, 123)
 var device_ip = device_ip2
 
 var log = logging.GetLogger("test")
+
+func init() {
+	logging.SetLevel(goLogging.DEBUG)
+}
 
 func NewClient() *adbclient.Client[types.ClientAddr] {
 	return adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
@@ -306,13 +313,15 @@ func TestActivityManager(t *testing.T) {
 	var client = NewClient()
 	AssertClientConnected(t, client)
 
+	var device = adbclient.NewDevice(client)
+
 	var intent = types.NewIntent()
 	intent.Action = "android.action.View"
 	intent.Extra.Es["key1"] = "string1"
 	intent.Extra.Es["key2"] = "string2"
 	intent.Extra.Eia["key_eia1"] = []int{1, 2, 3}
 
-	client.ActivityManager().Broadcast(intent)
+	device.ActivityManager().Broadcast(intent)
 }
 
 func TestShellCat(t *testing.T) {
@@ -390,6 +399,24 @@ func TestShellGetPropsType(t *testing.T) {
 	}
 }
 
+func TestDevice(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	device := adbclient.Device[types.ClientAddr]{Client: client}
+	deviceName := device.Name()
+	apiLevel := device.ApiLevel()
+	version := device.Version()
+
+	assert.NotNil(t, deviceName)
+	assert.NotNil(t, apiLevel)
+	assert.NotNil(t, version)
+
+	log.Infof("device name: %s", *deviceName)
+	log.Infof("device api level: %s", *apiLevel)
+	log.Infof("device version release: %s", *version)
+}
+
 func TestShellSetProp(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
@@ -408,5 +435,79 @@ func TestShellSetProp(t *testing.T) {
 	assert.Equal(t, "512m", *prop)
 
 	ok = shell.SetProp("dalvik.vm.heapsize", "512m")
-	assert.True(t, ok)	
+	assert.True(t, ok)
+}
+
+func TestWriteScreenCap(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	var target_file = "./exports/screencap.png"
+	var target_dir = filepath.Dir(target_file)
+
+	log.Infof("target file: %s", target_file)
+	log.Infof("target dir: %s", target_dir)
+
+	os.RemoveAll(target_dir)
+	os.MkdirAll(target_dir, 0755)
+
+	_, err := os.Stat(target_dir)
+	assert.Nil(t, err)
+
+	f, err := os.Create(target_file)
+	assert.Nil(t, err)
+	os.Chmod(target_file, 0755)
+
+	log.Infof("f: %v", f)
+
+	device := adbclient.NewDevice(client)
+	result, err := device.WriteScreenCap(f)
+	assert.Nil(t, err)
+
+	if err != nil {
+		log.Error(err.Error())
+		log.Error(result.Error())
+	}
+
+	assert.True(t, result.IsOk())
+	if _, err := os.Stat("./exports/screencap.png"); errors.Is(err, os.ErrNotExist) {
+		assert.Fail(t, "Screencap not exported")
+	}
+
+	os.RemoveAll(target_dir)
+}
+
+func TestSaveScreenCap(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	var target_file = "/sdcard/Download/screencap.png"
+
+	device := adbclient.NewDevice(client)
+	result, err := device.SaveScreenCap(target_file)
+	assert.Nil(t, err)
+
+	exists := client.Shell().Exists(target_file)
+	assert.True(t, exists)
+
+	if err != nil {
+		log.Error(err.Error())
+		log.Error(result.Error())
+	}
+
+	value := client.Shell().Exists(target_file)
+	assert.True(t, value)
+
+	value = client.Shell().IsFile(target_file)
+	assert.True(t, value)
+
+	value = client.Shell().IsDir(target_file)
+	assert.False(t, value)
+
+	value = client.Shell().IsSymlink(target_file)
+	assert.False(t, value)
+
+	value, err = client.Shell().Remove(target_file, false)
+	assert.Nil(t, err)
+	assert.True(t, value, "file not removed")
 }
