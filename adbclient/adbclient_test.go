@@ -305,5 +305,11 @@ func TestActivityManager(t *testing.T) {
 	var client = NewClient()
 	AssertClientConnected(t, client)
 
-	client.ActivityManager().Broadcast(nil)
+	var intent = types.NewIntent()
+	intent.Action = "android.action.View"
+	intent.Extra.Es["key1"] = "string1"
+	intent.Extra.Es["key2"] = "string2"
+	intent.Extra.Eia["key_eia1"] = []int{1, 2, 3}
+
+	client.ActivityManager().Broadcast(intent)
 }

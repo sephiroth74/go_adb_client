@@ -9,6 +9,6 @@ type ActivityManager[T types.Serial] struct {
 	Shell *shell.Shell[T];
 }
 
-func (a ActivityManager[T]) Broadcast(intent interface{}) {
-	a.Shell.Execute("am", "broadcast")
+func (a ActivityManager[T]) Broadcast(intent *types.Intent) {
+	a.Shell.Execute("am", "broadcast", intent.String())
 }

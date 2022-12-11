@@ -161,7 +161,7 @@ func (p ProcessBuilder[T]) Invoke() (Result, error) {
 	final_args = append(final_args, *p.command.command)
 	final_args = append(final_args, p.command.args...)
 
-	log.Debugf("Executing (timeout=%s) `%s %s`", p.Timeout, adb, strings.Join(final_args, " "))
+	log.Debugf("Executing (timeout=%s) `%s %s`", p.timeout.String(), adb, strings.Join(final_args, " "))
 
 	var cmd *exec.Cmd = nil
 
