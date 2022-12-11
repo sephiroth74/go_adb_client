@@ -116,6 +116,7 @@ type ProcessBuilder[T types.Serial] struct {
 	serial  *T
 	timeout time.Duration
 	command *TransportCommand
+	verbose bool
 }
 
 func NewProcessBuilder[T types.Serial](t T) *ProcessBuilder[T] {
@@ -127,11 +128,17 @@ func NewProcessBuilder[T types.Serial](t T) *ProcessBuilder[T] {
 		command: nil,
 		args:    []string{},
 	}
+	b.verbose = false
 	return b
 }
 
 func (p ProcessBuilder[T]) Args(args ...string) *ProcessBuilder[T] {
 	p.command.args = append(p.command.args, args...)
+	return &p
+}
+
+func (p ProcessBuilder[T]) Verbose(value bool) *ProcessBuilder[T] {
+	p.verbose = value
 	return &p
 }
 
@@ -151,10 +158,11 @@ func (p ProcessBuilder[T]) Command(command string) *ProcessBuilder[T] {
 }
 
 func (p ProcessBuilder[T]) Invoke() (Result, error) {
-	repr.Println(p)
+	if p.verbose {
+		log.Debug(repr.String(p.command))
+	}
 
 	var adb = filepath.Base(*p.command.path)
-
 	final_args := []string{}
 
 	if p.serial != nil {
@@ -165,7 +173,9 @@ func (p ProcessBuilder[T]) Invoke() (Result, error) {
 	final_args = append(final_args, *p.command.command)
 	final_args = append(final_args, p.command.args...)
 
-	log.Debugf("Executing (timeout=%s) `%s %s`", p.timeout.String(), adb, strings.Join(final_args, " "))
+	if p.verbose {
+		log.Debugf("Executing (timeout=%s) `%s %s`", p.timeout.String(), adb, strings.Join(final_args, " "))
+	}
 
 	var cmd *exec.Cmd = nil
 

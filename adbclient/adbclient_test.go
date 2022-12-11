@@ -359,7 +359,6 @@ func TestShellGetProp(t *testing.T) {
 	assert.Nil(t, prop)
 }
 
-
 func TestShellGetProps(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
@@ -372,4 +371,42 @@ func TestShellGetProps(t *testing.T) {
 	for _, v := range props {
 		log.Debugf("%s=%s", v.First, v.Second)
 	}
+}
+func TestShellGetPropsType(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	shell := client.Shell()
+	props, err := shell.GetProps()
+	assert.Nil(t, err)
+	assert.True(t, len(props) > 0)
+
+	for _, v := range props {
+		pt, ok := shell.GetPropType(v.First)
+		assert.Truef(t, ok, "Error getting type of key %s", v.First)
+		if ok {
+			log.Debugf("%s=%s", v.First, *pt)
+		}
+	}
+}
+
+func TestShellSetProp(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	shell := client.Shell()
+	prop := shell.GetProp("dalvik.vm.heapsize")
+	assert.NotNil(t, prop)
+
+	assert.True(t, *prop != "" && (*prop == "256m" || *prop == "512m"))
+
+	ok := shell.SetProp("dalvik.vm.heapsize", "512m")
+	assert.True(t, ok)
+
+	prop = shell.GetProp("dalvik.vm.heapsize")
+	assert.NotNil(t, prop)
+	assert.Equal(t, "512m", *prop)
+
+	ok = shell.SetProp("dalvik.vm.heapsize", "512m")
+	assert.True(t, ok)	
 }
