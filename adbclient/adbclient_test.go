@@ -2,10 +2,13 @@ package adbclient_test
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,12 +22,13 @@ import (
 	"it.sephiroth/adbclient/connection"
 	"it.sephiroth/adbclient/logging"
 	"it.sephiroth/adbclient/mdns"
+	"it.sephiroth/adbclient/packagemanager"
 	"it.sephiroth/adbclient/types"
 )
 
 var device_ip1 = net.IPv4(192, 168, 1, 105)
-var device_ip2 = net.IPv4(192, 168, 1, 123)
-var device_ip = device_ip2
+var device_ip2 = net.IPv4(192, 168, 1, 101)
+var device_ip = device_ip1
 
 var log = logging.GetLogger("test")
 
@@ -275,7 +279,7 @@ func TestWhich(t *testing.T) {
 	var client = NewClient()
 	AssertClientConnected(t, client)
 
-	result, err := client.Shell().Which("which")
+	result, err := client.Shell.Which("which")
 	assert.Nil(t, err)
 
 	println(result.Repr())
@@ -330,11 +334,11 @@ func TestShellCat(t *testing.T) {
 
 	assert.True(t, client.TryRoot())
 
-	result, err := client.Shell().Whoami()
+	result, err := client.Shell.Whoami()
 	assert.Nil(t, err)
 	assert.Equal(t, "root", result.Output())
 
-	result, err = client.Shell().Cat("/system/build.prop")
+	result, err = client.Shell.Cat("/system/build.prop")
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
@@ -359,7 +363,7 @@ func TestShellGetProp(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	shell := client.Shell()
+	shell := client.Shell
 	prop := shell.GetProp("wlan.driver.status")
 	assert.NotNil(t, prop)
 	assert.Equal(t, "ok", *prop)
@@ -372,7 +376,7 @@ func TestShellGetProps(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	shell := client.Shell()
+	shell := client.Shell
 	props, err := shell.GetProps()
 	assert.Nil(t, err)
 	assert.True(t, len(props) > 0)
@@ -385,7 +389,7 @@ func TestShellGetPropsType(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	shell := client.Shell()
+	shell := client.Shell
 	props, err := shell.GetProps()
 	assert.Nil(t, err)
 	assert.True(t, len(props) > 0)
@@ -421,7 +425,7 @@ func TestShellSetProp(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	shell := client.Shell()
+	shell := client.Shell
 	prop := shell.GetProp("dalvik.vm.heapsize")
 	assert.NotNil(t, prop)
 
@@ -487,7 +491,7 @@ func TestSaveScreenCap(t *testing.T) {
 	result, err := device.SaveScreenCap(target_file)
 	assert.Nil(t, err)
 
-	exists := client.Shell().Exists(target_file)
+	exists := client.Shell.Exists(target_file)
 	assert.True(t, exists)
 
 	if err != nil {
@@ -495,19 +499,147 @@ func TestSaveScreenCap(t *testing.T) {
 		log.Error(result.Error())
 	}
 
-	value := client.Shell().Exists(target_file)
+	value := client.Shell.Exists(target_file)
 	assert.True(t, value)
 
-	value = client.Shell().IsFile(target_file)
+	value = client.Shell.IsFile(target_file)
 	assert.True(t, value)
 
-	value = client.Shell().IsDir(target_file)
+	value = client.Shell.IsDir(target_file)
 	assert.False(t, value)
 
-	value = client.Shell().IsSymlink(target_file)
+	value = client.Shell.IsSymlink(target_file)
 	assert.False(t, value)
 
-	value, err = client.Shell().Remove(target_file, false)
+	value, err = client.Shell.Remove(target_file, false)
 	assert.Nil(t, err)
 	assert.True(t, value, "file not removed")
+}
+
+func TestListPackages(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	defer client.Disconnect()
+
+	device := adbclient.NewDevice(client)
+	pm := device.PackageManager()
+
+	// system apps
+	packages, err := pm.ListPackages(&packagemanager.PackageOptions{
+		ShowOnlyEnabed: true,
+		ShowOnlySystem: true,
+	})
+	assert.Nil(t, err)
+
+	for _, p := range packages {
+		log.Debugf("%s, uid:%s", p.Name, p.UID)
+		assert.True(t, p.Filename != "")
+		assert.True(t, p.Name != "")
+		assert.True(t, p.VersionCode != "")
+		assert.True(t, p.UID != "")
+	}
+}
+
+func TestFindPackages(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	defer client.Disconnect()
+
+	device := adbclient.NewDevice(client)
+	pm := device.PackageManager()
+
+	packages, err := pm.ListPackagesWithFilter(&packagemanager.PackageOptions{ShowOnlySystem: true}, "com.swisscom")
+	assert.Nil(t, err)
+	assert.GreaterOrEqual(t, len(packages), 1)
+
+	for _, p := range packages {
+		assert.True(t, p.Filename != "")
+		assert.True(t, strings.HasPrefix(p.Name, "com.swisscom"))
+		assert.True(t, p.VersionCode != "")
+		assert.True(t, p.UID != "")
+		assert.True(t, p.MaybeIsSystem())
+		log.Debugf("%s, uid:%s", p.Name, p.UID)
+	}
+}
+
+func TestScan(t *testing.T) {
+	// client := NewClient()
+	// AssertClientConnected(t, client)
+
+	// device := adbclient.NewDevice(client)
+	// pm := device.PackageManager()
+
+	// pm.List(packagemanager.PACKAGES)
+
+	// conn, err := net.DialTimeout("tcp", "192.168.1.122:5555", time.Duration(1)*time.Second)
+	// if err != nil {
+	// 	log.Warningf("Failed to connect to host")
+	// 	return
+	// }
+
+	// defer conn.Close()
+
+	// log.Debugf("addr: %v", conn.RemoteAddr().String())
+
+	scanner := NewScanner()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		for remoteAddr := range scanner.Results {
+			if remoteAddr != nil {
+				log.Infof("Device found: %s", *remoteAddr)
+			}
+		}
+	}()
+
+	scanner.Scan()
+	wg.Wait()
+
+	log.Info("Done")
+}
+
+type Scanner struct {
+	Results chan *string
+}
+
+func NewScanner() *Scanner {
+	return &Scanner{
+		Results: make(chan *string),
+	}
+}
+
+func (s *Scanner) Scan() {
+	go func() {
+		wg := new(sync.WaitGroup)
+		baseHost := "192.168.1.%d:5555"
+		// Adding routines to workgroup and running then
+		for i := 1; i < 255; i++ {
+			host := fmt.Sprintf(baseHost, i)
+			wg.Add(1)
+			go worker(i, host, s.Results, wg)
+		}
+		wg.Wait()
+		close(s.Results)
+	}()
+}
+
+func worker(index int, host string, ch chan *string, wg *sync.WaitGroup) {
+	// Decreasing internal counter for wait-group as soon as goroutine finishes
+	defer wg.Done()
+	log.Debugf("[%d] Trying to connect to %s", index, host)
+	conn, err := net.DialTimeout("tcp", host, time.Duration(1)*time.Second)
+	if err != nil {
+		ch <- nil
+		return
+	}
+
+	defer conn.Close()
+
+	var remoteAddr = conn.RemoteAddr().String()
+	ch <- &remoteAddr
 }

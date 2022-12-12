@@ -18,21 +18,18 @@ type Client[T types.Serial] struct {
 	Mdns    *mdns.Mdns
 	Channel chan rxgo.Item
 	Serial  T
+	Shell   *shell.Shell[T]
 }
 
 func NewClient[T types.Serial](device T) *Client[T] {
+	var conn = connection.NewConnection()
 	client := new(Client[T])
-	client.Conn = connection.NewConnection()
+	client.Conn = conn
 	client.Mdns = mdns.NewMdns(client.Conn)
 	client.Serial = device
 	client.Channel = make(chan rxgo.Item)
+	client.Shell = shell.NewShell(&conn.ADBPath, device)
 	return client
-}
-
-
-func (c Client[T]) Shell() *shell.Shell[T] {
-	var s = shell.NewShell(&c.Conn.ADBPath, c.Serial)
-	return s
 }
 
 func (c Client[T]) NewProcess() *transport.ProcessBuilder[T] {

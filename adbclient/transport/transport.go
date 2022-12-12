@@ -30,6 +30,10 @@ func (r Result) IsOk() bool {
 	return r.ExitCode == 0
 }
 
+func (r Result) NewError() error {
+	return fmt.Errorf("invalid exit code: %d", r.ExitCode)
+}
+
 func (r Result) Output() string {
 	return strings.TrimSpace(string(r.Stdout))
 }
