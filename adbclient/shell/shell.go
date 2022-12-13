@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"it.sephiroth/adbclient/input"
 	"it.sephiroth/adbclient/transport"
 	"it.sephiroth/adbclient/types"
 	"it.sephiroth/adbclient/util"
@@ -30,6 +31,14 @@ func (s Shell[T]) Execute(command string, timeout time.Duration, args ...string)
 	pb.Timeout(timeout)
 	pb.Args(command)
 	pb.Args(args...)
+	pb.Verbose(false)
+	return pb.Invoke()
+}
+
+func (s Shell[T]) Executef(format string, timeout time.Duration, v ...any) (transport.Result, error) {
+	pb := s.NewProcess()
+	pb.Timeout(timeout)
+	pb.Args(fmt.Sprintf(format, v))
 	pb.Verbose(false)
 	return pb.Invoke()
 }
@@ -138,6 +147,14 @@ func (s Shell[T]) Remove(filename string, force bool) (bool, error) {
 		return false, nil
 	}
 	return result.IsOk(), nil
+}
+
+func (s Shell[T]) SendKeyEvent(event input.KeyCode) (transport.Result, error) {
+	return s.Executef("input keyevent %d", 0, event)
+}
+
+func (s Shell[T]) SendChar(code char) (transport.Result, error) {
+	return s.Executef("input text %s", 0, code)
 }
 
 //
