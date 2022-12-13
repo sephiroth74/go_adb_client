@@ -564,6 +564,22 @@ func TestFindPackages(t *testing.T) {
 	}
 }
 
+func TestIsSystem(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	defer client.Disconnect()
+
+	device := adbclient.NewDevice(client)
+	pm := device.PackageManager()
+
+	is_system, _ := pm.IsSystem("com.swisscom.android.tv.library")
+	assert.True(t, is_system)
+
+	is_system, _ = pm.IsSystem("com.swisscom.swisscomTv")
+	assert.False(t, is_system)
+}
+
 func TestScan(t *testing.T) {
 	// client := NewClient()
 	// AssertClientConnected(t, client)

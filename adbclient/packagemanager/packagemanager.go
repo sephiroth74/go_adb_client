@@ -1,6 +1,7 @@
 package packagemanager
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -28,8 +29,8 @@ type PackageManager[T types.Serial] struct {
 	Shell *shell.Shell[T]
 }
 
-func (a PackageManager[T]) Path(packagename string) (string, error) {
-	result, err := a.Shell.Execute("pm", 0, "path", packagename)
+func (p PackageManager[T]) Path(packagename string) (string, error) {
+	result, err := p.Shell.Execute("pm", 0, "path", packagename)
 	if err != nil {
 		return "", err
 	}
@@ -43,6 +44,17 @@ func (a PackageManager[T]) Path(packagename string) (string, error) {
 
 func (p PackageManager[T]) ListPackages(options *PackageOptions) ([]Package, error) {
 	return p.ListPackagesWithFilter(options, "")
+}
+
+func (p PackageManager[T]) IsSystem(name string) (bool, error) {
+	result, err := p.Shell.Execute(
+		fmt.Sprintf("dumpsys package %s | egrep '^ {1,}flags=' | sed -e 's/ \\{1,\\}flags=\\[ \\(.*\\) \\]/\\1/g'| grep 'SYSTEM'", name), 0)
+
+	if err != nil {
+		return false, err
+	}
+	
+	return result.IsOk(), nil
 }
 
 // List packages on the device
@@ -146,11 +158,14 @@ func (p Package) String() string {
 	return repr.String(p)
 }
 
-// Sometimes the apk file path indicates if the package is a system app.
+// Check if the package is a system app.
+// Sometimes the apk file path or the uid indicate if the package is a system app.
 // if false is returned, the package can still be a system app, but it should be checked
-// against the dumpsys
+// against the dumpsys flags
 func (p Package) MaybeIsSystem() bool {
 	return strings.HasPrefix(p.Filename, "/system/") || strings.HasPrefix(p.Filename, "/product/") || strings.HasPrefix(p.Filename, "/system_ext/") ||
 		strings.HasPrefix(p.Filename, "/vendor/") || strings.HasPrefix(p.Filename, "/apex/") ||
 		p.UID == "1000"
 }
+
+// sed "s/^ \{4,\}flags=\[ \(.*\) \]/\1/g" | sed -e "s/ /,/g"
