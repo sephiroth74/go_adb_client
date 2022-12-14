@@ -6,7 +6,7 @@ import (
 )
 
 type ActivityManager[T types.Serial] struct {
-	Shell *shell.Shell[T];
+	Shell *shell.Shell[T]
 }
 
 func (a ActivityManager[T]) Broadcast(intent *types.Intent) {

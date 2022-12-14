@@ -152,6 +152,20 @@ func (c Connection) Push(addr string, src string, dst string) (transport.Result,
 	return transport.Invoke(&c.ADBPath, 0, "-s", addr, "push", src, dst)
 }
 
+func (c Connection) Install(src string, args ...string) (transport.Result, error) {
+	cmd := []string{"install"}
+	cmd = append(cmd, args...)
+	cmd = append(cmd, src)
+	return transport.Invoke(&c.ADBPath, 0, cmd...)
+}
+
+func (c Connection) Uninstall(packageName string, args ...string) (transport.Result, error) {
+	cmd := []string{"uninstall"}
+	cmd = append(cmd, args...)
+	cmd = append(cmd, packageName)
+	return transport.Invoke(&c.ADBPath, 0, cmd...)
+}
+
 func (c Connection) Which(addr string, command string) {
 	result, err := transport.Invoke(&c.ADBPath, 0, "-s", addr, constants.WHICH, command)
 

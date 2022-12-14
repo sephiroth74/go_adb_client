@@ -22,3 +22,30 @@ func MapNotNull[T interface{}](data []string, f func(string) (T, error)) []T {
 	}
 	return mapped
 }
+
+func Any[T interface{}](data []T, f func(T) bool) bool {
+	for _, e := range data {
+		if f(e) {
+			return true
+		}
+	}
+	return false
+}
+
+func All[T interface{}](data []T, f func(T) bool) bool {
+	for _, e := range data {
+		if !f(e) {
+			return false
+		}
+	}
+	return true
+}
+
+func First[T interface{}](data []T, f func(T) bool) *T {
+	for _, e := range data {
+		if f(e) {
+			return &e
+		}
+	}
+	return nil
+}

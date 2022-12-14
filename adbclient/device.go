@@ -57,7 +57,7 @@ func (d Device[T]) WriteScreenCap(output *os.File) (transport.Result, error) {
 	return pb.Invoke()
 }
 
-// Power off the device (turn the screen off).
+// PowerOff Power off the device (turn the screen off).
 // If the screen is already off it returns false, true otherwise
 func (d Device[T]) PowerOff() (bool, error) {
 	screenon, err := d.IsScreenOn()
@@ -68,11 +68,11 @@ func (d Device[T]) PowerOff() (bool, error) {
 	if screenon {
 		return d.Power()
 	} else {
-		return false, nil
+		return true, nil
 	}
 }
 
-// Power on the device (turn the screen off).
+// PowerOn Power on the device (turn the screen off).
 // If the screen is already on it returns false, true otherwise
 func (d Device[T]) PowerOn() (bool, error) {
 	screenon, err := d.IsScreenOn()
@@ -87,7 +87,7 @@ func (d Device[T]) PowerOn() (bool, error) {
 	}
 }
 
-// Send a KEYCODE_POWER input event to the device
+// Power Send a KEYCODE_POWER input event to the device
 func (d Device[T]) Power() (bool, error) {
 	result, err := d.Client.Shell.SendKeyEvent(input.KEYCODE_POWER)
 	if err != nil {
@@ -96,6 +96,7 @@ func (d Device[T]) Power() (bool, error) {
 	return result.IsOk(), nil
 }
 
+// IsScreenOn Return true if the device screen is on
 func (d Device[T]) IsScreenOn() (bool, error) {
 	result, err := d.Client.Shell.Execute("dumpsys input_method | egrep 'screenOn *=' | sed 's/ *screenOn = \\(.*\\)/\\1/g'", 0)
 	if err != nil {

@@ -154,7 +154,7 @@ func (c Client[T]) Unmount(dir string) (transport.Result, error) {
 	return WaitAndReturn(&result, err, time.Duration(1)*time.Second)
 }
 
-// Execute and return the result of the command 'adb bugreport'
+// BugReport Execute and return the result of the command 'adb bugreport'
 // dst: optional target local folder/filename for the bugreport
 func (c Client[T]) BugReport(dst string) (transport.Result, error) {
 	result, err := c.Conn.BugReport(c.Serial.Serial(), dst)
@@ -173,6 +173,29 @@ func (c Client[T]) Pull(src string, dst string) (transport.Result, error) {
 // dst is the target device where the file should be pushed to.
 func (c Client[T]) Push(src string, dst string) (transport.Result, error) {
 	return c.Conn.Push(c.Serial.Serial(), src, dst)
+}
+
+func (c Client[T]) Install(src string, options *InstallOptions) (transport.Result, error) {
+	var args []string
+	if options != nil {
+		if options.KeepData {
+			args = append(args, "-r")
+		}
+		if options.AllowTestPackages {
+			args = append(args, "-t")
+		}
+		if options.AllowDowngrade {
+			args = append(args, "-d")
+		}
+		if options.GrantPermissions {
+			args = append(args, "-g")
+		}
+	}
+	return c.Conn.Install(src, args...)
+}
+
+func (c Client[T]) Uninstall(packageName string) (transport.Result, error) {
+	return c.Conn.Uninstall(packageName)
 }
 
 //
@@ -211,4 +234,15 @@ func (c Client[T]) TryRoot() bool {
 		}
 	}
 	return false
+}
+
+type InstallOptions struct {
+	// -r reinstall an existing app, keeping its data
+	KeepData bool
+	// -t allow test packages
+	AllowTestPackages bool
+	// -d allow version code downgrade
+	AllowDowngrade bool
+	// -g grant all runtime permissions
+	GrantPermissions bool
 }

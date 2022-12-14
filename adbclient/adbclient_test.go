@@ -3,9 +3,11 @@ package adbclient_test
 import (
 	"errors"
 	"fmt"
+	"it.sephiroth/adbclient/util"
 	"net"
 	"os"
 	"path/filepath"
+	"pkg.re/essentialkaos/ek.v12/path"
 	"runtime"
 	"strings"
 	"sync"
@@ -30,6 +32,8 @@ import (
 var device_ip1 = net.IPv4(192, 168, 1, 105)
 var device_ip2 = net.IPv4(192, 168, 1, 110)
 var device_ip = device_ip2
+
+var local_apk = ""
 
 var log = logging.GetLogger("test")
 
@@ -250,7 +254,7 @@ func TestPull(t *testing.T) {
 	path, err := filepath.Abs("./export")
 	assert.Nil(t, err)
 
-	result, err := client.Pull("/data/data/com.swisscom.aot.library.sample", path)
+	result, err := client.Pull("/data/data/com.library.sample", path)
 
 	if err != nil {
 		log.Error(err.Error())
@@ -386,6 +390,7 @@ func TestShellGetProps(t *testing.T) {
 		log.Debugf("%s=%s", v.First, v.Second)
 	}
 }
+
 func TestShellGetPropsType(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
@@ -551,13 +556,13 @@ func TestFindPackages(t *testing.T) {
 	device := adbclient.NewDevice(client)
 	pm := device.PackageManager()
 
-	packages, err := pm.ListPackagesWithFilter(&packagemanager.PackageOptions{ShowOnlySystem: true}, "com.swisscom")
+	packages, err := pm.ListPackagesWithFilter(&packagemanager.PackageOptions{ShowOnlySystem: true}, "com.google")
 	assert.Nil(t, err)
 	assert.GreaterOrEqual(t, len(packages), 1)
 
 	for _, p := range packages {
 		assert.True(t, p.Filename != "")
-		assert.True(t, strings.HasPrefix(p.Name, "com.swisscom"))
+		assert.True(t, strings.HasPrefix(p.Name, "com.google"))
 		assert.True(t, p.VersionCode != "")
 		assert.True(t, p.UID != "")
 		assert.True(t, p.MaybeIsSystem())
@@ -574,10 +579,10 @@ func TestIsSystem(t *testing.T) {
 	device := adbclient.NewDevice(client)
 	pm := device.PackageManager()
 
-	is_system, _ := pm.IsSystem("com.swisscom.aot.library.standalone")
+	is_system, _ := pm.IsSystem("com.google.youtube")
 	assert.True(t, is_system)
 
-	is_system, _ = pm.IsSystem("com.swisscom.swisscomTv")
+	is_system, _ = pm.IsSystem("com.google.youtube")
 	assert.False(t, is_system)
 }
 
@@ -645,7 +650,7 @@ func TestIsScreenOn(t *testing.T) {
 
 	result, err := device.IsScreenOn()
 	assert.Nil(t, err)
-	repr.Println(result)
+	assert.True(t, result)
 
 	if result {
 		result, err = device.PowerOff()
@@ -653,6 +658,107 @@ func TestIsScreenOn(t *testing.T) {
 		result, err = device.PowerOn()
 	}
 	assert.Nil(t, err)
+}
+
+func TestInstall(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	options := adbclient.InstallOptions{
+		GrantPermissions:  true,
+		AllowTestPackages: true,
+		AllowDowngrade:    true,
+		KeepData:          true,
+	}
+
+	result, err := client.Install(local_apk, &options)
+
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+}
+
+func TestPmUninstall(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	device := adbclient.NewDevice(client)
+	packageName := "..."
+
+	packages, err := device.PackageManager().ListPackagesWithFilter(nil, packageName)
+	assert.Nil(t, err)
+
+	installed := util.Any(packages, func(p packagemanager.Package) bool {
+		log.Debugf("Checking package %s", p.Name)
+		return p.Name == packageName
+	})
+
+	if !installed {
+		log.Warning("Not installed. Skipping test")
+		return
+	}
+
+	options := packagemanager.UninstallOptions{
+		KeepData:    true,
+		User:        "0",
+		VersionCode: "",
+	}
+	result, err := device.PackageManager().Uninstall(packageName, &options)
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+}
+
+func TestPmInstall(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	device := adbclient.NewDevice(client)
+
+	result, err := client.Push(local_apk, "/data/local/tmp/")
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+
+	remote_apk := fmt.Sprintf("/data/local/tmp/%s", path.Base(local_apk))
+	result, err = device.PackageManager().Install(remote_apk, &packagemanager.InstallOptions{
+		User:                "0",
+		RestrictPermissions: false,
+		Pkg:                 "",
+		InstallLocation:     1,
+		GrantPermissions:    true,
+	})
+
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+
+}
+
+func TestDump(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	pkg := "com.netflix.ninja"
+
+	device := adbclient.NewDevice(client)
+	result, err := device.PackageManager().Dump(pkg)
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+
+	parser := packagemanager.NewPackageReader(result.Output())
+	assert.NotNil(t, parser)
+	assert.Equal(t, pkg, parser.PackageName())
+	assert.Equal(t, "1000", parser.UserID())
+	assert.Equal(t, "1.0.41", parser.VersionName())
+	assert.True(t, len(parser.CodePath()) > 1)
+	assert.True(t, len(parser.TimeStamp()) > 1)
+	assert.True(t, len(parser.LastUpdateTime()) > 1)
+	assert.True(t, len(parser.FirstInstallTime()) > 1)
+
+	flags := parser.Flags()
+	assert.True(t, len(flags) > 0)
+
+	for _, v := range flags {
+		assert.True(t, len(v) > 1)
+	}
+
 }
 
 func TestScan(t *testing.T) {
@@ -693,6 +799,7 @@ func TestScan(t *testing.T) {
 
 	log.Info("Done")
 }
+
 type Scanner struct {
 	Results chan *string
 }

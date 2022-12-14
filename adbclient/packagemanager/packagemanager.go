@@ -2,6 +2,7 @@ package packagemanager
 
 import (
 	"fmt"
+	"it.sephiroth/adbclient/transport"
 	"regexp"
 	"strings"
 
@@ -48,16 +49,20 @@ func (p PackageManager[T]) ListPackages(options *PackageOptions) ([]Package, err
 
 func (p PackageManager[T]) IsSystem(name string) (bool, error) {
 	result, err := p.Shell.Execute(
-		fmt.Sprintf("dumpsys package %s | egrep '^ {1,}flags=' | egrep ' {1,}SYSTEM {1,}'", name), 0)
+		fmt.Sprintf("pm dump %s | egrep '^ {1,}flags=' | egrep ' {1,}SYSTEM {1,}'", name), 0)
 
 	if err != nil {
 		return false, err
 	}
-	
+
 	return result.IsOk(), nil
 }
 
-// List packages on the device
+func (p PackageManager[T]) Dump(name string) (transport.Result, error) {
+	return p.Shell.Executef("pm dump %s", 0, name)
+}
+
+// ListPackagesWithFilter List packages on the device
 func (p PackageManager[T]) ListPackagesWithFilter(options *PackageOptions, filter string) ([]Package, error) {
 	//	list packages [-f] [-d] [-e] [-s] [-3] [-i] [-l] [-u] [-U]
 	//	[--show-versioncode] [--apex-only] [--uid UID] [--user USER_ID] [FILTER]
@@ -136,6 +141,80 @@ func (p PackageManager[T]) ListPackagesWithFilter(options *PackageOptions, filte
 	}
 }
 
+func (p PackageManager[T]) Install(src string, options *InstallOptions) (transport.Result, error) {
+	var args []string
+	if options != nil {
+		if options.RestrictPermissions {
+			args = append(args, "--restrict-permissions")
+		}
+		if options.User != "" {
+			args = append(args, "--user", options.User)
+		}
+		if options.Pkg != "" {
+			args = append(args, "--pkg", options.Pkg)
+		}
+		if options.InstallLocation > 0 {
+			args = append(args, "--install-location", fmt.Sprintf("%d", options.InstallLocation))
+		}
+		if options.GrantPermissions {
+			args = append(args, "-g")
+		}
+	}
+	args = append(args, src)
+	return p.Shell.Execute("cmd package install", 0, args...)
+}
+
+// Uninstall
+// uninstall [-k] [--user USER_ID] [--versionCode VERSION_CODE]
+// PACKAGE [SPLIT...]
+// Remove the given package name from the system.  May remove an entire app
+// if no SPLIT names specified, otherwise will remove only the splits of the
+// given app.  Options are:
+// -k: keep the data and cache directories around after package removal.
+// --user: remove the app from the given user.
+// --versionCode: only uninstall if the app has the given version code.
+func (p PackageManager[T]) Uninstall(packageName string, options *UninstallOptions) (transport.Result, error) {
+	var args []string
+	if options != nil {
+		if options.KeepData {
+			args = append(args, "-k")
+		}
+		if options.User != "" {
+			args = append(args, "--user", options.User)
+		}
+		if options.VersionCode != "" {
+			args = append(args, "--versionCode", options.VersionCode)
+		}
+	}
+	args = append(args, packageName)
+	return p.Shell.Execute("cmd package uninstall", 0, args...)
+}
+
+type UninstallOptions struct {
+	// -k
+	KeepData bool
+	// --user
+	User string
+	// --versionCode
+	VersionCode string
+}
+
+type InstallOptions struct {
+	// --user: install under the given user.
+	User string
+	// --dont-kill: installing a new feature split, don't kill running app
+	DontKill bool
+	// --restrict-permissions: don't whitelist restricted permissions at install
+	RestrictPermissions bool
+	// --pkg: specify expected package name of app being installed
+	Pkg string
+	// --install-location: force the install location:
+	// 0=auto, 1=internal only, 2=prefer external
+	InstallLocation int
+	// -g: grant all runtime permissions
+	GrantPermissions bool
+}
+
 type PackageOptions struct {
 	// -d: filter to only show disabled packages
 	ShowOnlyDisabled bool
@@ -158,7 +237,7 @@ func (p Package) String() string {
 	return repr.String(p)
 }
 
-// Check if the package is a system app.
+// MaybeIsSystem Check if the package is a system app.
 // Sometimes the apk file path or the uid indicate if the package is a system app.
 // if false is returned, the package can still be a system app, but it should be checked
 // against the dumpsys flags
@@ -167,4 +246,3 @@ func (p Package) MaybeIsSystem() bool {
 		strings.HasPrefix(p.Filename, "/vendor/") || strings.HasPrefix(p.Filename, "/apex/") ||
 		p.UID == "1000"
 }
-
