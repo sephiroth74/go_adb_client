@@ -48,7 +48,7 @@ func (p PackageManager[T]) ListPackages(options *PackageOptions) ([]Package, err
 
 func (p PackageManager[T]) IsSystem(name string) (bool, error) {
 	result, err := p.Shell.Execute(
-		fmt.Sprintf("dumpsys package %s | egrep '^ {1,}flags=' | sed -e 's/ \\{1,\\}flags=\\[ \\(.*\\) \\]/\\1/g'| grep 'SYSTEM'", name), 0)
+		fmt.Sprintf("dumpsys package %s | egrep '^ {1,}flags=' | egrep ' {1,}SYSTEM {1,}'", name), 0)
 
 	if err != nil {
 		return false, err

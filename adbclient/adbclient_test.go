@@ -20,6 +20,7 @@ import (
 
 	"it.sephiroth/adbclient"
 	"it.sephiroth/adbclient/connection"
+	"it.sephiroth/adbclient/input"
 	"it.sephiroth/adbclient/logging"
 	"it.sephiroth/adbclient/mdns"
 	"it.sephiroth/adbclient/packagemanager"
@@ -28,7 +29,7 @@ import (
 
 var device_ip1 = net.IPv4(192, 168, 1, 105)
 var device_ip2 = net.IPv4(192, 168, 1, 101)
-var device_ip = device_ip1
+var device_ip = device_ip2
 
 var log = logging.GetLogger("test")
 
@@ -568,16 +569,70 @@ func TestIsSystem(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	defer client.Disconnect()
+	//defer client.Disconnect()
 
 	device := adbclient.NewDevice(client)
 	pm := device.PackageManager()
 
-	is_system, _ := pm.IsSystem("com.swisscom.android.tv.library")
+	is_system, _ := pm.IsSystem("com.swisscom.aot.library.standalone")
 	assert.True(t, is_system)
 
 	is_system, _ = pm.IsSystem("com.swisscom.swisscomTv")
 	assert.False(t, is_system)
+}
+
+func TestSendKey(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	result, err := client.Shell.SendKeyEvent(input.KEYCODE_DPAD_DOWN)
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+}
+
+func TestSendText(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	// defer client.Disconnect()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		client.Shell.SendString("Alessandro")
+		wg.Done()
+	}()
+
+	wg.Wait()
+}
+
+func TestSendKeys(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	// defer client.Disconnect()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		client.Shell.SendKeyEvents(input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL)
+		wg.Done()
+	}()
+
+	wg.Wait()
+}
+
+func TestGetEvents(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	// defer client.Disconnect()
+
+	result, err := client.Shell.GetEvents()
+	assert.Nil(t, err)
+
+	repr.Println(result)
 }
 
 func TestScan(t *testing.T) {
@@ -618,7 +673,6 @@ func TestScan(t *testing.T) {
 
 	log.Info("Done")
 }
-
 type Scanner struct {
 	Results chan *string
 }

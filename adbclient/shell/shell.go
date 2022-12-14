@@ -38,7 +38,7 @@ func (s Shell[T]) Execute(command string, timeout time.Duration, args ...string)
 func (s Shell[T]) Executef(format string, timeout time.Duration, v ...any) (transport.Result, error) {
 	pb := s.NewProcess()
 	pb.Timeout(timeout)
-	pb.Args(fmt.Sprintf(format, v))
+	pb.Args(fmt.Sprintf(format, v...))
 	pb.Verbose(false)
 	return pb.Invoke()
 }
@@ -150,14 +150,57 @@ func (s Shell[T]) Remove(filename string, force bool) (bool, error) {
 }
 
 func (s Shell[T]) SendKeyEvent(event input.KeyCode) (transport.Result, error) {
-	return s.Executef("input keyevent %d", 0, event)
+	return s.SendKeyEvents(event)
 }
 
-func (s Shell[T]) SendChar(code char) (transport.Result, error) {
-	return s.Executef("input text %s", 0, code)
+func (s Shell[T]) SendKeyEvents(events ...input.KeyCode) (transport.Result, error) {
+	var format = make([]string, len(events))
+	for i, v := range events {
+		format[i] = fmt.Sprintf("%d", v)
+	}
+	return s.Executef("input keyevent %s", 0, strings.Join(format, " "))
+}
+
+func (s Shell[T]) SendChar(code rune) (transport.Result, error) {
+	return s.Executef("input text %c", 0, code)
+}
+
+func (s Shell[T]) SendString(value string) (transport.Result, error) {
+	return s.Executef("input text '%s'", 0, value)
+}
+
+// Returns a slice of Pairs each one containing the event type and the event name
+func (s Shell[T]) GetEvents() ([]types.Pair[string, string], error) {
+	result, err := s.Execute("getevent", 0, "-p")
+	if err != nil {
+		return nil, err
+	}
+
+	arr := parseEvents(result.Output())
+	return arr, nil
 }
 
 //
+
+func parseEvents(text string) []types.Pair[string, string] {
+	arr := []types.Pair[string, string]{}
+	f := regexp.MustCompile(`add device [0-9]+:\s(?P<event>[^\n]+)\s*name:\s*"(?P<name>[^"]+)"`)
+	for {
+		m := f.FindStringSubmatchIndex(text)
+		if len(m) == 6 {
+			event := text[m[2]:m[3]]
+			name := text[m[4]:m[5]]
+			arr = append(arr, types.Pair[string, string]{
+				First:  event,
+				Second: name,
+			})
+		} else {
+			break
+		}
+		text = text[m[1]:]
+	}
+	return arr
+}
 
 func parsePropLine(line string) (types.Pair[string, string], error) {
 	f := regexp.MustCompile(`^\[(.*)\]\s*:\s*\[(.*)\]\s*$`)
