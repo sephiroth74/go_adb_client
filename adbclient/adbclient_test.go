@@ -28,7 +28,7 @@ import (
 )
 
 var device_ip1 = net.IPv4(192, 168, 1, 105)
-var device_ip2 = net.IPv4(192, 168, 1, 101)
+var device_ip2 = net.IPv4(192, 168, 1, 110)
 var device_ip = device_ip2
 
 var log = logging.GetLogger("test")
@@ -633,6 +633,26 @@ func TestGetEvents(t *testing.T) {
 	assert.Nil(t, err)
 
 	repr.Println(result)
+}
+
+func TestIsScreenOn(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	// defer client.Disconnect()
+
+	device := adbclient.NewDevice(client)
+
+	result, err := device.IsScreenOn()
+	assert.Nil(t, err)
+	repr.Println(result)
+
+	if result {
+		result, err = device.PowerOff()
+	} else {
+		result, err = device.PowerOn()
+	}
+	assert.Nil(t, err)
 }
 
 func TestScan(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"it.sephiroth/adbclient/activitymanager"
+	"it.sephiroth/adbclient/input"
 	"it.sephiroth/adbclient/packagemanager"
 	"it.sephiroth/adbclient/transport"
 	"it.sephiroth/adbclient/types"
@@ -54,4 +55,56 @@ func (d Device[T]) WriteScreenCap(output *os.File) (transport.Result, error) {
 	pb.Verbose(true)
 	pb.Stdout(output)
 	return pb.Invoke()
+}
+
+// Power off the device (turn the screen off).
+// If the screen is already off it returns false, true otherwise
+func (d Device[T]) PowerOff() (bool, error) {
+	screenon, err := d.IsScreenOn()
+	if err != nil {
+		return false, err
+	}
+
+	if screenon {
+		return d.Power()
+	} else {
+		return false, nil
+	}
+}
+
+// Power on the device (turn the screen off).
+// If the screen is already on it returns false, true otherwise
+func (d Device[T]) PowerOn() (bool, error) {
+	screenon, err := d.IsScreenOn()
+	if err != nil {
+		return false, err
+	}
+
+	if !screenon {
+		return d.Power()
+	} else {
+		return false, nil
+	}
+}
+
+// Send a KEYCODE_POWER input event to the device
+func (d Device[T]) Power() (bool, error) {
+	result, err := d.Client.Shell.SendKeyEvent(input.KEYCODE_POWER)
+	if err != nil {
+		return false, err
+	}
+	return result.IsOk(), nil
+}
+
+func (d Device[T]) IsScreenOn() (bool, error) {
+	result, err := d.Client.Shell.Execute("dumpsys input_method | egrep 'screenOn *=' | sed 's/ *screenOn = \\(.*\\)/\\1/g'", 0)
+	if err != nil {
+		return false, err
+	}
+
+	if result.IsOk() {
+		return result.Output() == "true", nil
+	} else {
+		return false, result.NewError()
+	}
 }

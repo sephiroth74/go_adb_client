@@ -168,4 +168,3 @@ func (p Package) MaybeIsSystem() bool {
 		p.UID == "1000"
 }
 
-// sed "s/^ \{4,\}flags=\[ \(.*\) \]/\1/g" | sed -e "s/ /,/g"

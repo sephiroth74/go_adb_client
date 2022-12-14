@@ -156,7 +156,7 @@ func (s Shell[T]) SendKeyEvent(event input.KeyCode) (transport.Result, error) {
 func (s Shell[T]) SendKeyEvents(events ...input.KeyCode) (transport.Result, error) {
 	var format = make([]string, len(events))
 	for i, v := range events {
-		format[i] = fmt.Sprintf("%d", v)
+		format[i] = fmt.Sprintf("%s", v.String())
 	}
 	return s.Executef("input keyevent %s", 0, strings.Join(format, " "))
 }
