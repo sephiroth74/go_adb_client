@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"it.sephiroth/adbclient/input"
-	"it.sephiroth/adbclient/transport"
-	"it.sephiroth/adbclient/types"
-	"it.sephiroth/adbclient/util"
-	"it.sephiroth/adbclient/util/constants"
+	"github.com/sephiroth74/go_adb_client/input"
+	"github.com/sephiroth74/go_adb_client/transport"
+	"github.com/sephiroth74/go_adb_client/types"
+	"github.com/sephiroth74/go_adb_client/util"
+	"github.com/sephiroth74/go_adb_client/util/constants"
 )
 
 type Shell[T types.Serial] struct {

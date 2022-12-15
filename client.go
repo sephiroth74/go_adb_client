@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/reactivex/rxgo/v2"
-	"it.sephiroth/adbclient/connection"
-	"it.sephiroth/adbclient/events"
-	"it.sephiroth/adbclient/mdns"
-	"it.sephiroth/adbclient/shell"
-	"it.sephiroth/adbclient/transport"
-	"it.sephiroth/adbclient/types"
+	"github.com/sephiroth74/go_adb_client/connection"
+	"github.com/sephiroth74/go_adb_client/events"
+	"github.com/sephiroth74/go_adb_client/mdns"
+	"github.com/sephiroth74/go_adb_client/shell"
+	"github.com/sephiroth74/go_adb_client/transport"
+	"github.com/sephiroth74/go_adb_client/types"
 )
 
 type Client[T types.Serial] struct {

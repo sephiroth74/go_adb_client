@@ -3,7 +3,6 @@ package adbclient_test
 import (
 	"errors"
 	"fmt"
-	"it.sephiroth/adbclient/util"
 	"net"
 	"os"
 	"path/filepath"
@@ -14,19 +13,21 @@ import (
 	"testing"
 	"time"
 
+	goLogging "github.com/op/go-logging"
+
 	"github.com/alecthomas/repr"
 	"github.com/magiconair/properties"
-	goLogging "github.com/op/go-logging"
 	"github.com/reactivex/rxgo/v2"
 	"github.com/stretchr/testify/assert"
 
-	"it.sephiroth/adbclient"
-	"it.sephiroth/adbclient/connection"
-	"it.sephiroth/adbclient/input"
-	"it.sephiroth/adbclient/logging"
-	"it.sephiroth/adbclient/mdns"
-	"it.sephiroth/adbclient/packagemanager"
-	"it.sephiroth/adbclient/types"
+	"github.com/sephiroth74/go_adb_client"
+	"github.com/sephiroth74/go_adb_client/connection"
+	"github.com/sephiroth74/go_adb_client/input"
+	"github.com/sephiroth74/go_adb_client/logging"
+	"github.com/sephiroth74/go_adb_client/mdns"
+	"github.com/sephiroth74/go_adb_client/packagemanager"
+	"github.com/sephiroth74/go_adb_client/types"
+	"github.com/sephiroth74/go_adb_client/util"
 )
 
 var device_ip1 = net.IPv4(192, 168, 1, 105)

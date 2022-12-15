@@ -1,4 +1,4 @@
-module it.sephiroth/adbclient
+module github.com/sephiroth74/go_adb_client
 
 go 1.19
 

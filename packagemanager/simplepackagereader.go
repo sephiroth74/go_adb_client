@@ -3,7 +3,7 @@ package packagemanager
 import (
 	"errors"
 	"fmt"
-	"it.sephiroth/adbclient/types"
+	"github.com/sephiroth74/go_adb_client/types"
 	"regexp"
 	"strconv"
 	"strings"

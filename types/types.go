@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/alecthomas/repr"
-	"it.sephiroth/adbclient/util"
+	"github.com/sephiroth74/go_adb_client/util"
 )
 
 // region Pair

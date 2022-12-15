@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"os"
 
-	"it.sephiroth/adbclient/logging"
-	"it.sephiroth/adbclient/types"
+	"github.com/sephiroth74/go_adb_client/logging"
+	"github.com/sephiroth74/go_adb_client/types"
 
 	"bytes"
 	"context"

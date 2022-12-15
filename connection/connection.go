@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"it.sephiroth/adbclient/transport"
-	"it.sephiroth/adbclient/types"
-	"it.sephiroth/adbclient/util/constants"
+	"github.com/sephiroth74/go_adb_client/transport"
+	"github.com/sephiroth74/go_adb_client/types"
+	"github.com/sephiroth74/go_adb_client/util/constants"
 
 	"pkg.re/essentialkaos/ek.v12/env"
 )

@@ -2,15 +2,15 @@ package packagemanager
 
 import (
 	"fmt"
-	"it.sephiroth/adbclient/transport"
+	"github.com/sephiroth74/go_adb_client/transport"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/alecthomas/repr"
-	"it.sephiroth/adbclient/logging"
-	"it.sephiroth/adbclient/shell"
-	"it.sephiroth/adbclient/types"
+	"github.com/sephiroth74/go_adb_client/logging"
+	"github.com/sephiroth74/go_adb_client/shell"
+	"github.com/sephiroth74/go_adb_client/types"
 )
 
 var log = logging.GetLogger("pm")

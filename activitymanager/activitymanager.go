@@ -1,9 +1,9 @@
 package activitymanager
 
 import (
-	"it.sephiroth/adbclient/shell"
-	"it.sephiroth/adbclient/transport"
-	"it.sephiroth/adbclient/types"
+	"github.com/sephiroth74/go_adb_client/shell"
+	"github.com/sephiroth74/go_adb_client/transport"
+	"github.com/sephiroth74/go_adb_client/types"
 )
 
 type ActivityManager[T types.Serial] struct {

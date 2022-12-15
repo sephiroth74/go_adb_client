@@ -3,11 +3,11 @@ package adbclient
 import (
 	"os"
 
-	"it.sephiroth/adbclient/activitymanager"
-	"it.sephiroth/adbclient/input"
-	"it.sephiroth/adbclient/packagemanager"
-	"it.sephiroth/adbclient/transport"
-	"it.sephiroth/adbclient/types"
+	"github.com/sephiroth74/go_adb_client/activitymanager"
+	"github.com/sephiroth74/go_adb_client/input"
+	"github.com/sephiroth74/go_adb_client/packagemanager"
+	"github.com/sephiroth74/go_adb_client/transport"
+	"github.com/sephiroth74/go_adb_client/types"
 )
 
 type Device[T types.Serial] struct {

@@ -4,9 +4,9 @@ import (
 	"regexp"
 	"strings"
 
-	"it.sephiroth/adbclient/connection"
-	"it.sephiroth/adbclient/transport"
-	"it.sephiroth/adbclient/types"
+	"github.com/sephiroth74/go_adb_client/connection"
+	"github.com/sephiroth74/go_adb_client/transport"
+	"github.com/sephiroth74/go_adb_client/types"
 )
 
 type Mdns struct {
