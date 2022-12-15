@@ -11,7 +11,16 @@ import (
 	"it.sephiroth/adbclient/util"
 )
 
-// ClientAddr
+// region Pair
+
+type Pair[K interface{}, V interface{}] struct {
+	First  K
+	Second V
+}
+
+// endregion Pair
+
+// region Serial
 
 type Serial interface {
 	ClientAddr | Device | MdnsDevice
@@ -19,14 +28,13 @@ type Serial interface {
 	String() string
 }
 
+// endregion Serial
+
+// region ClientAddr
+
 type ClientAddr struct {
 	IP   net.IP
 	Port int
-}
-
-type Pair[K interface{}, V interface{}] struct {
-	First  K
-	Second V
 }
 
 func (c ClientAddr) ToString() string {
@@ -39,24 +47,6 @@ func (c ClientAddr) String() string {
 
 func (c ClientAddr) Serial() string {
 	return fmt.Sprintf("%s:%d", c.IP, c.Port)
-}
-
-// Device
-
-type Device struct {
-	Addr      ClientAddr
-	Product   []byte
-	Model     []byte
-	Device    []byte
-	Transport []byte
-}
-
-func (m Device) Serial() string {
-	return m.Addr.Serial()
-}
-
-func (m Device) String() string {
-	return repr.String(m)
 }
 
 func NewClientAddress(addr *string) (*ClientAddr, error) {
@@ -85,17 +75,41 @@ func NewClientAddress(addr *string) (*ClientAddr, error) {
 	return address, nil
 }
 
+// endregion ClientAddr
+
+// region Device
+
+type Device struct {
+	Addr      ClientAddr
+	Product   []byte
+	Model     []byte
+	Device    []byte
+	Transport []byte
+}
+
+func (m Device) Serial() string {
+	return m.Addr.Serial()
+}
+
+func (m Device) String() string {
+	return repr.String(m)
+}
+
 func NewDevice(addr *string) (*Device, error) {
-	client_addr, err := NewClientAddress(addr)
+	clientAddr, err := NewClientAddress(addr)
 
 	if err != nil {
 		return nil, err
 	}
 
 	device := new(Device)
-	device.Addr = *client_addr
+	device.Addr = *clientAddr
 	return device, nil
 }
+
+// endregion Device
+
+// region MdnsDevice
 
 type MdnsDevice struct {
 	Name           string
@@ -124,7 +138,12 @@ func NewMdnsDevice(name string, ctype string, addr *string) (*MdnsDevice, error)
 	return mdns, nil
 }
 
+// endregion MdnsDevice
+
+// region Intent
+
 type UserId string
+
 type Intent struct {
 	Action    string
 	Data      string
@@ -156,7 +175,7 @@ type Extras struct {
 
 func (i Intent) String() string {
 	// sb := strings.Builder{}
-	sb := []string{}
+	var sb []string
 	if i.Action != "" {
 		sb = append(sb, fmt.Sprintf("-a %s", i.Action))
 	}
@@ -193,7 +212,7 @@ func (i Intent) String() string {
 }
 
 func (e Extras) String() string {
-	s := []string{}
+	var s []string
 	if e.Es != nil && len(e.Es) > 0 {
 		for k, v := range e.Es {
 			s = append(s, fmt.Sprintf("--es %s %s", k, v))
@@ -294,3 +313,5 @@ func NewIntent() *Intent {
 		},
 	}
 }
+
+// endregion Intent

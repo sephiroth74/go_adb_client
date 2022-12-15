@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"it.sephiroth/adbclient/transport"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/alecthomas/repr"
@@ -188,6 +189,73 @@ func (p PackageManager[T]) Uninstall(packageName string, options *UninstallOptio
 	}
 	args = append(args, packageName)
 	return p.Shell.Execute("cmd package uninstall", 0, args...)
+}
+
+func (p PackageManager[T]) RuntimePermissions(packageName string) ([]types.PackagePermission, error) {
+	result, err := p.Dump(packageName)
+	if err != nil {
+		return nil, err
+	}
+
+	var runtimePermissions []types.PackagePermission
+
+	data := result.Output()
+	f := regexp.MustCompile(`(?m)^\s{3,}runtime permissions:\s+`)
+	m := f.FindStringIndex(data)
+
+	if m != nil {
+		data = data[m[1]:]
+		m := regexp.MustCompile("(?m)^$").FindStringIndex(data)
+		if m != nil {
+			data = data[:m[1]]
+
+			f = regexp.MustCompile(`(?m)^\s*([^:]+):\s+granted=(false|true),\s+flags=\[\s*([^\]]+)\]$`)
+			match := f.FindAllStringSubmatch(data, -1)
+			if match != nil {
+				for _, v := range match {
+					name := v[1]
+					granted := v[2]
+					flags := strings.Split(strings.TrimSpace(v[3]), "|")
+					boolValue, _ := strconv.ParseBool(granted)
+
+					runtimePermissions = append(runtimePermissions, types.PackagePermission{
+						Permission: types.Permission{Name: name},
+						Granted:    boolValue,
+						Flags:      flags,
+					})
+				}
+			}
+		}
+	}
+	return runtimePermissions, nil
+}
+
+func (p PackageManager[T]) InstallPermissions(packageName string) ([]types.PackagePermission, error) {
+	result, err := p.Dump(packageName)
+	if err != nil {
+		return nil, err
+	}
+
+	if !result.IsOk() {
+		return nil, result.NewError()
+	}
+
+	var parser = NewPackageReader(result.Output())
+	return parser.InstallPermissions(), nil
+}
+
+func (p PackageManager[T]) RequestedPermissions(packageName string) ([]types.RequestedPermission, error) {
+	result, err := p.Dump(packageName)
+	if err != nil {
+		return nil, err
+	}
+
+	if !result.IsOk() {
+		return nil, result.NewError()
+	}
+
+	var parser = NewPackageReader(result.Output())
+	return parser.RequestedPermissions(), nil
 }
 
 type UninstallOptions struct {

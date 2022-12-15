@@ -761,6 +761,48 @@ func TestDump(t *testing.T) {
 
 }
 
+func TestRuntimePermissions(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	device := adbclient.NewDevice(client)
+	result, err := device.PackageManager().RuntimePermissions("com.netflix.ninja")
+	assert.Nil(t, err)
+	assert.True(t, len(result) > 0)
+
+	for _, v := range result {
+		log.Debug(v)
+	}
+}
+
+func TestInstallPermissions(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	device := adbclient.NewDevice(client)
+	result, err := device.PackageManager().InstallPermissions("com.netflix.ninja")
+	assert.Nil(t, err)
+	assert.True(t, len(result) > 0)
+
+	for _, v := range result {
+		log.Debug(v)
+	}
+}
+
+func TestRequestedPermissions(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	device := adbclient.NewDevice(client)
+	result, err := device.PackageManager().RequestedPermissions("com.netflix.ninja")
+	assert.Nil(t, err)
+	assert.True(t, len(result) > 0)
+
+	for _, v := range result {
+		log.Debug(v)
+	}
+}
+
 func TestScan(t *testing.T) {
 	// client := NewClient()
 	// AssertClientConnected(t, client)

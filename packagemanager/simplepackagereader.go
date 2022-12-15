@@ -3,7 +3,9 @@ package packagemanager
 import (
 	"errors"
 	"fmt"
+	"it.sephiroth/adbclient/types"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -89,6 +91,54 @@ func (s SimplePackageReader) ResourcePath() string {
 
 func (s SimplePackageReader) VersionName() string {
 	result, _ := s.getItem("versionName")
+	return result
+}
+
+func (s SimplePackageReader) InstallPermissions() []types.PackagePermission {
+	f := regexp.MustCompile(`(?m)^\s{3,}install permissions:\n(?P<permissions>(\s{4,}[^\:]+:\s+granted=(true|false)\n)+)`)
+	m := f.FindStringSubmatch(s.Data)
+	var result []types.PackagePermission
+	if m != nil {
+		data := m[1]
+
+		f = regexp.MustCompile(`(?m)^\s{4,}(?P<name>[^\:]+):\s+granted=(?P<granted>true|false)$`)
+		match := f.FindAllStringSubmatch(data, -1)
+		if match != nil {
+			for _, v := range match {
+				name := v[1]
+				granted := v[2]
+				boolValue, _ := strconv.ParseBool(granted)
+				result = append(result, types.PackagePermission{
+					Permission: types.Permission{Name: name},
+					Granted:    boolValue,
+					Flags:      nil,
+				})
+			}
+		}
+	}
+	return result
+}
+
+func (s SimplePackageReader) RequestedPermissions() []types.RequestedPermission {
+	f := regexp.MustCompile(`(?m)^\s{3,}requested permissions:\n((\s{4,}[\w\.]+$)+)`)
+	m := f.FindStringSubmatch(s.Data)
+	var result []types.RequestedPermission
+	if m != nil {
+		data := m[1]
+
+		f = regexp.MustCompile(`(?m)^\s{4,}([\w\.]+)$`)
+		match := f.FindAllStringSubmatch(data, -1)
+		if match != nil {
+			for _, v := range match {
+				name := v[1]
+				result = append(result, types.RequestedPermission{
+					Permission: types.Permission{
+						Name: name,
+					},
+				})
+			}
+		}
+	}
 	return result
 }
 
