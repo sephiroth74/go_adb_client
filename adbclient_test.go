@@ -808,7 +808,7 @@ func TestClearPackage(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 	device := adbclient.NewDevice(client)
-	result, err := device.PackageManager().Clear("com.swisscom.aot.library.standalone")
+	result, err := device.PackageManager().Clear("com.netflix.ninja")
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 }
