@@ -13,18 +13,6 @@ import (
 	"it.sephiroth/adbclient/types"
 )
 
-const (
-// 	Prints all known permissions, optionally only those in group. Options:
-// -g: Organize by group.
-// -f: Print all information.
-// -s: Short summary.
-// -d: Only list dangerous permissions.
-// -u: List only the permissions users will see.
-
-// Print the path to the APK of the given package.
-// PATH ListType = "path"
-)
-
 var log = logging.GetLogger("pm")
 
 type PackageManager[T types.Serial] struct {
@@ -256,6 +244,19 @@ func (p PackageManager[T]) RequestedPermissions(packageName string) ([]types.Req
 
 	var parser = NewPackageReader(result.Output())
 	return parser.RequestedPermissions(), nil
+}
+
+// Clear executes a "pm clear packageName" on the connected device
+func (p PackageManager[T]) Clear(packageName string) (transport.Result, error) {
+	return p.Shell.Executef("pm clear", 0, packageName)
+}
+
+func (p PackageManager[T]) GrantPermission(packageName string, permission string) (transport.Result, error) {
+	return p.Shell.Executef("pm grant %s %s", 0, packageName, permission)
+}
+
+func (p PackageManager[T]) RevokePermission(packageName string, permission string) (transport.Result, error) {
+	return p.Shell.Executef("pm revoke %s %s", 0, packageName, permission)
 }
 
 type UninstallOptions struct {
