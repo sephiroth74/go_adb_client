@@ -105,12 +105,7 @@ func invokeInternal(path *string, timeout time.Duration, args ...string) (Result
 		Stdout:   outb.Bytes(),
 		Stderr:   errb.Bytes(),
 	}
-
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return result, err
 }
 
 type TransportCommand struct {

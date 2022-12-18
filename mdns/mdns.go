@@ -25,7 +25,7 @@ func (m Mdns) Services() ([]types.MdnsDevice, error) {
 	}
 
 	lines := strings.Split(result.Output(), "\n")
-	devices := []types.MdnsDevice{}
+	var devices []types.MdnsDevice
 
 	if len(lines) > 1 {
 		r := regexp.MustCompile(`([^\s\t]+)\t([^\s\t]+)\t([^\n]+)`)

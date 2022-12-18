@@ -14,8 +14,8 @@ import (
 )
 
 var timeout = time.Duration(5) * time.Second
-var reboot_timeout = time.Duration(30) * time.Second
-var wait_for_device_timeout = time.Duration(1) * time.Minute
+var rebootTimeout = time.Duration(30) * time.Second
+var waitForDeviceTimeout = time.Duration(1) * time.Minute
 
 type Connection struct {
 	ADBPath string
@@ -67,7 +67,7 @@ func (c Connection) GetState(addr string) (transport.Result, error) {
 }
 
 func (c Connection) WaitForDevice(addr string) (transport.Result, error) {
-	return c.WaitForDeviceWithTimeout(addr, wait_for_device_timeout)
+	return c.WaitForDeviceWithTimeout(addr, waitForDeviceTimeout)
 }
 
 func (c Connection) WaitForDeviceWithTimeout(addr string, timeout time.Duration) (transport.Result, error) {
@@ -91,19 +91,19 @@ func (c Connection) IsRoot(addr string) (bool, error) {
 }
 
 func (c Connection) Reboot(addr string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, reboot_timeout, "-s", addr, "reboot")
+	return transport.Invoke(&c.ADBPath, rebootTimeout, "-s", addr, "reboot")
 }
 
 func (c Connection) Remount(addr string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, reboot_timeout, "-s", addr, "remount")
+	return transport.Invoke(&c.ADBPath, rebootTimeout, "-s", addr, "remount")
 }
 
 func (c Connection) Mount(addr string, dir string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, reboot_timeout, "-s", addr, "shell", fmt.Sprintf("mount -o rw,remount %s", dir))
+	return transport.Invoke(&c.ADBPath, rebootTimeout, "-s", addr, "shell", fmt.Sprintf("mount -o rw,remount %s", dir))
 }
 
 func (c Connection) Unmount(addr string, dir string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, reboot_timeout, "-s", addr, "shell", fmt.Sprintf("mount -o ro,remount %s", dir))
+	return transport.Invoke(&c.ADBPath, rebootTimeout, "-s", addr, "shell", fmt.Sprintf("mount -o ro,remount %s", dir))
 }
 
 func (c Connection) ListDevices() ([]*types.Device, error) {
@@ -113,7 +113,7 @@ func (c Connection) ListDevices() ([]*types.Device, error) {
 		return nil, err
 	}
 
-	var devices = []*types.Device{}
+	var devices []*types.Device
 
 	r := regexp.MustCompile(`(?P<ip>[^\s]+)[\s]+device product:(?P<device_product>[^\s]+)\smodel:(?P<model>[^\s]+)\sdevice:(?P<device>[^\s]+)\stransport_id:(?P<transport_id>[^\s]+)`)
 	lines := strings.Split(result.Output(), "\n")

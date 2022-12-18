@@ -1,7 +1,9 @@
 package util
 
-func Map[T interface{}](data []string, f func(string) (T, error)) ([]T, error) {
-	mapped := make([]T, len(data))
+import "errors"
+
+func Map[I any, O any](data []I, f func(I) (O, error)) ([]O, error) {
+	mapped := make([]O, len(data))
 	for i, e := range data {
 		m, err := f(e)
 		if err != nil {
@@ -12,8 +14,8 @@ func Map[T interface{}](data []string, f func(string) (T, error)) ([]T, error) {
 	return mapped, nil
 }
 
-func MapNotNull[T interface{}](data []string, f func(string) (T, error)) []T {
-	mapped := []T{}
+func MapNotNull[I any, O any](data []I, f func(I) (O, error)) []O {
+	var mapped []O
 	for _, e := range data {
 		m, err := f(e)
 		if err == nil {
@@ -23,7 +25,7 @@ func MapNotNull[T interface{}](data []string, f func(string) (T, error)) []T {
 	return mapped
 }
 
-func Any[T interface{}](data []T, f func(T) bool) bool {
+func Any[T any](data []T, f func(T) bool) bool {
 	for _, e := range data {
 		if f(e) {
 			return true
@@ -32,7 +34,7 @@ func Any[T interface{}](data []T, f func(T) bool) bool {
 	return false
 }
 
-func All[T interface{}](data []T, f func(T) bool) bool {
+func All[T any](data []T, f func(T) bool) bool {
 	for _, e := range data {
 		if !f(e) {
 			return false
@@ -41,7 +43,21 @@ func All[T interface{}](data []T, f func(T) bool) bool {
 	return true
 }
 
-func First[T interface{}](data []T, f func(T) bool) *T {
+func First[T any](data []T, f func(T) (bool, error)) (*T, error) {
+	for _, e := range data {
+		r, err := f(e)
+		if err != nil {
+			return nil, err
+		}
+
+		if r {
+			return &e, nil
+		}
+	}
+	return nil, errors.New("not found")
+}
+
+func FirstNotNull[T any](data []T, f func(T) bool) *T {
 	for _, e := range data {
 		if f(e) {
 			return &e

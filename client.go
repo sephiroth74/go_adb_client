@@ -2,6 +2,8 @@ package adbclient
 
 import (
 	"fmt"
+	"github.com/sephiroth74/go_adb_client/util"
+	"net"
 	"time"
 
 	"github.com/reactivex/rxgo/v2"
@@ -30,6 +32,10 @@ func NewClient[T types.Serial](device T) *Client[T] {
 	client.Channel = make(chan rxgo.Item)
 	client.Shell = shell.NewShell(&conn.ADBPath, device)
 	return client
+}
+
+func NullClient() *Client[types.ClientAddr] {
+	return NewClient(types.ClientAddr{IP: net.IPv4(127, 0, 0, 1), Port: 5555})
 }
 
 func (c Client[T]) NewProcess() *transport.ProcessBuilder[T] {
@@ -198,6 +204,45 @@ func (c Client[T]) Uninstall(packageName string) (transport.Result, error) {
 	return c.Conn.Uninstall(packageName)
 }
 
+func (c Client[T]) Logcat(options LogcatOptions) (transport.Result, error) {
+	args := []string{"logcat"}
+
+	if options.Expr != "" {
+		args = append(args, "-e", options.Expr)
+	}
+
+	if options.Dump {
+		args = append(args, "-d")
+	}
+
+	if options.Filename != "" {
+		args = append(args, options.Filename)
+	}
+
+	if options.Format != "" {
+		args = append(args, "-v", options.Format)
+	}
+
+	if len(options.Pids) > 0 {
+		args = append(args, "--pid")
+		args = append(args, options.Pids...)
+	}
+
+	if len(options.Tags) > 0 {
+		tags, _ := util.Map(options.Tags, func(tag LogcatTag) (string, error) {
+			return tag.String(), nil
+		})
+		args = append(args, tags...)
+		args = append(args, "*:S")
+	}
+
+	if options.Since != "" {
+		args = append(args, options.Since)
+	}
+
+	return transport.Invoke(&c.Conn.ADBPath, 0, args...)
+}
+
 //
 //
 //
@@ -245,4 +290,40 @@ type InstallOptions struct {
 	AllowDowngrade bool
 	// -g grant all runtime permissions
 	GrantPermissions bool
+}
+
+type LogcatOptions struct {
+	// -e Only prints lines where the log message matches <expr>, where <expr> is a regular expression.
+	Expr string
+	// -d	Dumps the log to the screen and exits.
+	Dump bool
+	// -f <filename>	Writes log message output to <filename>. The default is stdout.
+	Filename string
+	// -s	Equivalent to the filter expression '*:S', which sets priority for all tags to silent and is used to precede a list of filter expressions that add content.
+	Tags []LogcatTag
+	// -v <format>	Sets the output format for log messages. The default is the threadtime format
+	Format string
+	// -t '<time>'	Prints the most recent lines since the specified time. This option includes -d functionality. See the -P option for information about quoting parameters with embedded spaces.
+	Since string
+	// --pid=<pid> ...
+	Pids []string
+}
+
+type LogcatLevel string
+
+const (
+	LogcatVerbose LogcatLevel = "V"
+	LogcatDebug   LogcatLevel = "D"
+	LogcatInfo    LogcatLevel = "I"
+	LogcatWarn    LogcatLevel = "W"
+	LogcatError   LogcatLevel = "E"
+)
+
+type LogcatTag struct {
+	Name  string
+	Level LogcatLevel
+}
+
+func (l LogcatTag) String() string {
+	return fmt.Sprintf("%s:%s", l.Name, l.Level)
 }

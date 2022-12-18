@@ -3,6 +3,7 @@ package adbclient_test
 import (
 	"errors"
 	"fmt"
+	"github.com/sephiroth74/go_adb_client/scanner"
 	"net"
 	"os"
 	"path/filepath"
@@ -814,81 +815,63 @@ func TestClearPackage(t *testing.T) {
 }
 
 func TestScan(t *testing.T) {
-	// client := NewClient()
-	// AssertClientConnected(t, client)
+	sc := scanner.NewScanner()
 
-	// device := adbclient.NewDevice(client)
-	// pm := device.PackageManager()
-
-	// pm.List(packagemanager.PACKAGES)
-
-	// conn, err := net.DialTimeout("tcp", "192.168.1.122:5555", time.Duration(1)*time.Second)
-	// if err != nil {
-	// 	log.Warningf("Failed to connect to host")
-	// 	return
-	// }
-
-	// defer conn.Close()
-
-	// log.Debugf("addr: %v", conn.RemoteAddr().String())
-
-	scanner := NewScanner()
+	log.Notice("Scanning for devices...")
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		for remoteAddr := range scanner.Results {
+		for remoteAddr := range sc.Results {
 			if remoteAddr != nil {
 				log.Infof("Device found: %s", *remoteAddr)
 			}
 		}
 	}()
-
-	scanner.Scan()
+	sc.Scan()
 	wg.Wait()
+	log.Info("Done")
 
+	log.Notice("Scanning mdns services...")
+
+	client := adbclient.NullClient()
+	services, _ := client.Mdns.Services()
+
+	for _, service := range services {
+		log.Infof("Mdns found: %s", service.Address.Serial())
+	}
 	log.Info("Done")
 }
 
-type Scanner struct {
-	Results chan *string
-}
+func TestLogcat(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
 
-func NewScanner() *Scanner {
-	return &Scanner{
-		Results: make(chan *string),
+	result, err := client.Logcat(adbclient.LogcatOptions{
+		Expr:     "",
+		Dump:     true,
+		Filename: "",
+		Tags: []adbclient.LogcatTag{
+			{
+				Name:  "PropertiesReceiver",
+				Level: adbclient.LogcatDebug,
+			},
+			{
+				Name:  "MY_CUSTOM_TAG",
+				Level: adbclient.LogcatVerbose,
+			},
+		},
+		Format: "tag",
+		Since:  "",
+		Pids:   nil,
+	})
+
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+
+	for _, line := range result.OutputLines() {
+		log.Notice(line)
 	}
-}
-
-func (s *Scanner) Scan() {
-	go func() {
-		wg := new(sync.WaitGroup)
-		baseHost := "192.168.1.%d:5555"
-		// Adding routines to workgroup and running then
-		for i := 1; i < 255; i++ {
-			host := fmt.Sprintf(baseHost, i)
-			wg.Add(1)
-			go worker(i, host, s.Results, wg)
-		}
-		wg.Wait()
-		close(s.Results)
-	}()
-}
-
-func worker(index int, host string, ch chan *string, wg *sync.WaitGroup) {
-	// Decreasing internal counter for wait-group as soon as goroutine finishes
-	defer wg.Done()
-	log.Debugf("[%d] Trying to connect to %s", index, host)
-	conn, err := net.DialTimeout("tcp", host, time.Duration(1)*time.Second)
-	if err != nil {
-		ch <- nil
-		return
-	}
-
-	defer conn.Close()
-
-	var remoteAddr = conn.RemoteAddr().String()
-	ch <- &remoteAddr
 }
