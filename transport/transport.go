@@ -18,8 +18,6 @@ import (
 	"github.com/alecthomas/repr"
 )
 
-var log = logging.GetLogger("transport")
-
 type Result struct {
 	ExitCode int
 	Stdout   []byte
@@ -74,40 +72,6 @@ func OkResult(str string) Result {
 	return r
 }
 
-func Invoke(path *string, timeout time.Duration, args ...string) (Result, error) {
-	return invokeInternal(path, timeout, args...)
-}
-
-// region Private Methods
-
-func invokeInternal(path *string, timeout time.Duration, args ...string) (Result, error) {
-	log.Debugf("Executing (timeout=%s) `%s %s`", timeout, filepath.Base(*path), strings.Join(args, " "))
-
-	var cmd *exec.Cmd = nil
-
-	if timeout > 0 {
-		var ctx, cancel = context.WithTimeout(context.Background(), timeout)
-		defer cancel()
-		cmd = exec.CommandContext(ctx, *path, args...)
-	} else {
-		cmd = exec.Command(*path, args...)
-	}
-
-	var outb, errb bytes.Buffer
-	cmd.Stdout = &outb
-	cmd.Stderr = &errb
-
-	err := cmd.Run()
-	exitCode := cmd.ProcessState.ExitCode()
-
-	var result = Result{
-		ExitCode: exitCode,
-		Stdout:   outb.Bytes(),
-		Stderr:   errb.Bytes(),
-	}
-	return result, err
-}
-
 type TransportCommand struct {
 	path    *string
 	command *string
@@ -115,16 +79,16 @@ type TransportCommand struct {
 }
 
 type ProcessBuilder struct {
-	serial  *types.Serial
+	serial  string
 	timeout time.Duration
 	command *TransportCommand
 	verbose bool
 	stdout  *os.File
 }
 
-func NewProcessBuilder(t types.Serial) *ProcessBuilder {
+func NewProcessBuilder() *ProcessBuilder {
 	b := new(ProcessBuilder)
-	b.serial = &t
+	b.serial = ""
 	b.timeout = 0
 	b.command = &TransportCommand{
 		path:    nil,
@@ -136,55 +100,70 @@ func NewProcessBuilder(t types.Serial) *ProcessBuilder {
 	return b
 }
 
-func (p *ProcessBuilder) Args(args ...string) {
+func (p *ProcessBuilder) WithSerial(t *types.Serial) *ProcessBuilder {
+	p.serial = (*t).GetSerialAddress()
+	return p
+}
+
+func (p *ProcessBuilder) WithSerialAddr(t string) *ProcessBuilder {
+	p.serial = t
+	return p
+}
+
+func (p *ProcessBuilder) WithArgs(args ...string) *ProcessBuilder {
 	p.command.args = append(p.command.args, args...)
+	return p
 }
 
-func (p *ProcessBuilder) Verbose(value bool) {
+func (p *ProcessBuilder) Verbose(value bool) *ProcessBuilder {
 	p.verbose = value
+	return p
 }
 
-func (p *ProcessBuilder) Stdout(value *os.File) {
+func (p *ProcessBuilder) WithStdout(value *os.File) *ProcessBuilder {
 	p.stdout = value
+	return p
 }
 
-func (p *ProcessBuilder) Timeout(time time.Duration) {
+func (p *ProcessBuilder) WithTimeout(time time.Duration) *ProcessBuilder {
 	p.timeout = time
+	return p
 }
 
-func (p *ProcessBuilder) Path(path *string) {
+func (p *ProcessBuilder) WithPath(path *string) *ProcessBuilder {
 	p.command.path = path
+	return p
 }
 
-func (p *ProcessBuilder) Command(command string) {
+func (p *ProcessBuilder) WithCommand(command string) *ProcessBuilder {
 	p.command.command = &command
+	return p
 }
 
 func (p *ProcessBuilder) Invoke() (Result, error) {
 	if p.verbose {
-		log.Debugf(repr.String(p.command))
+		logging.Log.Debug().Msgf(repr.String(p.command))
 	}
 
 	var adb = filepath.Base(*p.command.path)
 	var finalArgs []string
 
-	if p.serial != nil {
-		var p3 = *p.serial
-		finalArgs = append(finalArgs, "-s", p3.GetSerialAddress())
+	if p.serial != "" {
+		finalArgs = append(finalArgs, "-s", p.serial)
 	}
 
 	finalArgs = append(finalArgs, *p.command.command)
 	finalArgs = append(finalArgs, p.command.args...)
 
-	log.Debugf("Executing (timeout=%s) `%s %s`", p.timeout.String(), adb, strings.Join(finalArgs, " "))
-
 	var cmd *exec.Cmd = nil
 
 	if p.timeout > 0 {
+		logging.Log.Debug().Msgf("Executing (timeout=%s) `%s %s`", p.timeout.String(), adb, strings.Join(finalArgs, " "))
 		var ctx, cancel = context.WithTimeout(context.Background(), p.timeout)
 		defer cancel()
 		cmd = exec.CommandContext(ctx, *p.command.path, finalArgs...)
 	} else {
+		logging.Log.Debug().Msgf("Executing `%s %s`", adb, strings.Join(finalArgs, " "))
 		cmd = exec.Command(*p.command.path, finalArgs...)
 	}
 

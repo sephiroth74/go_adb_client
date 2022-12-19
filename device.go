@@ -49,10 +49,10 @@ func (d Device) SaveScreenCap(output string) (transport.Result, error) {
 
 func (d Device) WriteScreenCap(output *os.File) (transport.Result, error) {
 	var pb = d.Client.NewProcess()
-	pb.Command("exec-out")
-	pb.Args("screencap", "-p")
+	pb.WithCommand("exec-out")
+	pb.WithArgs("screencap", "-p")
 	pb.Verbose(true)
-	pb.Stdout(output)
+	pb.WithStdout(output)
 	return pb.Invoke()
 }
 

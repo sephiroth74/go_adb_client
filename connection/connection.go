@@ -29,7 +29,7 @@ func NewConnection() *Connection {
 }
 
 func (c Connection) Version() (string, error) {
-	result, err := transport.Invoke(&c.ADBPath, timeout, "--version")
+	result, err := transport.NewProcessBuilder().WithPath(&c.ADBPath).WithCommand("--version").Invoke()
 	if err != nil {
 		return "", err
 	}
@@ -47,23 +47,28 @@ func (c Connection) Version() (string, error) {
 }
 
 func (c Connection) Connect(addr string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, timeout, "connect", addr)
+	p := transport.NewProcessBuilder()
+	p.WithCommand(c.ADBPath)
+	p.WithArgs("connect", addr)
+	p.WithTimeout(waitForDeviceTimeout)
+	return p.Invoke()
+	//return transport.InvokeWithTimeout(&c.ADBPath, waitForDeviceTimeout, "connect", addr)
 }
 
 func (c Connection) Reconnect(addr string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, timeout, "reconnect", addr)
+	return transport.NewProcessBuilder().WithPath(&c.ADBPath).WithCommand("reconnect").WithArgs(addr).WithTimeout(waitForDeviceTimeout).Invoke()
 }
 
 func (c Connection) Disconnect(addr string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, timeout, "disconnect", addr)
+	return transport.NewProcessBuilder().WithPath(&c.ADBPath).WithCommand("disconnect").WithArgs(addr).Invoke()
 }
 
 func (c Connection) DisconnectAll() (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, timeout, "disconnect")
+	return transport.NewProcessBuilder().WithPath(&c.ADBPath).WithCommand("disconnect").Invoke()
 }
 
 func (c Connection) GetState(addr string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, timeout, "-s", addr, "get-state")
+	return transport.NewProcessBuilder().WithPath(&c.ADBPath).WithSerialAddr(addr).WithCommand("get-state").Invoke()
 }
 
 func (c Connection) WaitForDevice(addr string) (transport.Result, error) {
@@ -71,19 +76,29 @@ func (c Connection) WaitForDevice(addr string) (transport.Result, error) {
 }
 
 func (c Connection) WaitForDeviceWithTimeout(addr string, timeout time.Duration) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, timeout, "-s", addr, "wait-for-device", "shell", "while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done; input keyevent 143")
+	return transport.NewProcessBuilder().
+		WithPath(&c.ADBPath).
+		WithSerialAddr(addr).
+		WithTimeout(timeout).
+		WithCommand("wait-for-device").
+		WithArgs("shell", "while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done; input keyevent 143").
+		Invoke()
 }
 
 func (c Connection) Root(addr string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, timeout, "-s", addr, "root")
+	return transport.NewProcessBuilder().WithPath(&c.ADBPath).WithSerialAddr(addr).WithCommand("root").Invoke()
 }
 
 func (c Connection) UnRoot(addr string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, timeout, "-s", addr, "unroot")
+	return transport.NewProcessBuilder().WithPath(&c.ADBPath).WithSerialAddr(addr).WithCommand("unroot").Invoke()
 }
 
 func (c Connection) IsRoot(addr string) (bool, error) {
-	result, err := transport.Invoke(&c.ADBPath, timeout, "-s", addr, "shell", "whoami")
+	result, err := transport.NewProcessBuilder().
+		WithPath(&c.ADBPath).
+		WithSerialAddr(addr).
+		WithCommand("shell").
+		WithArgs("whoami").Invoke()
 	if err != nil {
 		return false, err
 	}
@@ -91,23 +106,32 @@ func (c Connection) IsRoot(addr string) (bool, error) {
 }
 
 func (c Connection) Reboot(addr string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, rebootTimeout, "-s", addr, "reboot")
+	return transport.NewProcessBuilder().WithPath(&c.ADBPath).WithSerialAddr(addr).WithCommand("reboot").Invoke()
 }
 
 func (c Connection) Remount(addr string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, rebootTimeout, "-s", addr, "remount")
+	return transport.NewProcessBuilder().WithPath(&c.ADBPath).WithSerialAddr(addr).WithCommand("remount").Invoke()
 }
 
 func (c Connection) Mount(addr string, dir string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, rebootTimeout, "-s", addr, "shell", fmt.Sprintf("mount -o rw,remount %s", dir))
+	return transport.NewProcessBuilder().
+		WithPath(&c.ADBPath).
+		WithSerialAddr(addr).
+		WithCommand("shell").
+		WithArgs(fmt.Sprintf("mount -o rw,remount %s", dir)).Invoke()
 }
 
 func (c Connection) Unmount(addr string, dir string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, rebootTimeout, "-s", addr, "shell", fmt.Sprintf("mount -o ro,remount %s", dir))
+	return transport.NewProcessBuilder().
+		WithPath(&c.ADBPath).
+		WithSerialAddr(addr).
+		WithCommand("shell").
+		WithArgs(fmt.Sprintf("mount -o ro,remount %s", dir)).
+		Invoke()
 }
 
 func (c Connection) ListDevices() ([]*types.Device, error) {
-	result, err := transport.Invoke(&c.ADBPath, timeout, "devices", "-l")
+	result, err := transport.NewProcessBuilder().WithPath(&c.ADBPath).WithCommand("devices").WithArgs("-l").Invoke()
 
 	if err != nil {
 		return nil, err
@@ -141,38 +165,55 @@ func (c Connection) ListDevices() ([]*types.Device, error) {
 }
 
 func (c Connection) BugReport(addr string, dst string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, 0, "-s", addr, "bugreport", dst)
+	return transport.NewProcessBuilder().WithPath(&c.ADBPath).WithSerialAddr(addr).WithCommand("bugreport").WithArgs(dst).Invoke()
 }
 
 func (c Connection) Pull(addr string, src string, dst string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, 0, "-s", addr, "pull", src, dst)
+	return transport.NewProcessBuilder().WithPath(&c.ADBPath).WithSerialAddr(addr).WithCommand("pull").WithArgs(src, dst).Invoke()
 }
 
 func (c Connection) Push(addr string, src string, dst string) (transport.Result, error) {
-	return transport.Invoke(&c.ADBPath, 0, "-s", addr, "push", src, dst)
+	return transport.NewProcessBuilder().WithPath(&c.ADBPath).WithSerialAddr(addr).WithCommand("push").WithArgs(src, dst).Invoke()
 }
 
-func (c Connection) Install(src string, args ...string) (transport.Result, error) {
+func (c Connection) Install(addr string, src string, args ...string) (transport.Result, error) {
 	cmd := []string{"install"}
 	cmd = append(cmd, args...)
 	cmd = append(cmd, src)
-	return transport.Invoke(&c.ADBPath, 0, cmd...)
+	return transport.NewProcessBuilder().
+		WithPath(&c.ADBPath).
+		WithSerialAddr(addr).
+		WithArgs(args...).
+		WithArgs(src).
+		WithCommand("install").
+		Invoke()
 }
 
-func (c Connection) Uninstall(packageName string, args ...string) (transport.Result, error) {
+func (c Connection) Uninstall(addr string, packageName string, args ...string) (transport.Result, error) {
 	cmd := []string{"uninstall"}
 	cmd = append(cmd, args...)
 	cmd = append(cmd, packageName)
-	return transport.Invoke(&c.ADBPath, 0, cmd...)
+
+	return transport.NewProcessBuilder().
+		WithPath(&c.ADBPath).
+		WithSerialAddr(addr).
+		WithCommand("uninstall").
+		WithArgs(args...).
+		WithArgs(packageName).
+		Invoke()
 }
 
-func (c Connection) Which(addr string, command string) {
-	result, err := transport.Invoke(&c.ADBPath, 0, "-s", addr, constants.WHICH, command)
+func (c Connection) Which(addr string, command string) (string, error) {
+	result, err := transport.NewProcessBuilder().
+		WithPath(&c.ADBPath).
+		WithSerialAddr(addr).
+		WithCommand(constants.WHICH).
+		WithArgs(command).
+		Invoke()
 
 	if err != nil {
-		println(err.Error())
-		return
+		return "", err
 	}
 
-	println("result: %s", result.Repr())
+	return result.Output(), nil
 }

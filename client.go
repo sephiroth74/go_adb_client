@@ -39,9 +39,7 @@ func NullClient() *Client {
 }
 
 func (c Client) NewProcess() *transport.ProcessBuilder {
-	pb := transport.NewProcessBuilder(c.Address)
-	pb.Path(&c.Conn.ADBPath)
-	return pb
+	return transport.NewProcessBuilder().WithSerial(&c.Address).WithPath(&c.Conn.ADBPath)
 }
 
 func (c Client) DeferredDispatch(eventType events.EventType) {
@@ -197,15 +195,15 @@ func (c Client) Install(src string, options *InstallOptions) (transport.Result, 
 			args = append(args, "-g")
 		}
 	}
-	return c.Conn.Install(src, args...)
+	return c.Conn.Install(c.Address.GetSerialAddress(), src, args...)
 }
 
 func (c Client) Uninstall(packageName string) (transport.Result, error) {
-	return c.Conn.Uninstall(packageName)
+	return c.Conn.Uninstall(c.Address.GetSerialAddress(), packageName)
 }
 
 func (c Client) Logcat(options LogcatOptions) (transport.Result, error) {
-	args := []string{"logcat"}
+	args := []string{}
 
 	if options.Expr != "" {
 		args = append(args, "-e", options.Expr)
@@ -236,11 +234,18 @@ func (c Client) Logcat(options LogcatOptions) (transport.Result, error) {
 		args = append(args, "*:S")
 	}
 
-	if options.Since != "" {
-		args = append(args, options.Since)
+	if options.Since != nil {
+		args = append(args, "-t")
+		args = append(args, options.Since.Format("01-02 15:04:05.000"))
 	}
 
-	return transport.Invoke(&c.Conn.ADBPath, 0, args...)
+	pb := c.NewProcess().WithArgs(args...).WithCommand("logcat")
+
+	if options.Timeout > 0 {
+		pb.WithTimeout(options.Timeout)
+	}
+
+	return pb.Invoke()
 }
 
 //
@@ -304,9 +309,11 @@ type LogcatOptions struct {
 	// -v <format>	Sets the output format for log messages. The default is the threadtime format
 	Format string
 	// -t '<time>'	Prints the most recent lines since the specified time. This option includes -d functionality. See the -P option for information about quoting parameters with embedded spaces.
-	Since string
+	Since *time.Time
 	// --pid=<pid> ...
 	Pids []string
+
+	Timeout time.Duration
 }
 
 type LogcatLevel string

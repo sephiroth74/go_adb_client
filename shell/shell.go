@@ -28,27 +28,15 @@ func NewShell(adb *string, serial types.Serial) *Shell {
 }
 
 func (s Shell) Execute(command string, timeout time.Duration, args ...string) (transport.Result, error) {
-	pb := s.NewProcess()
-	pb.Timeout(timeout)
-	pb.Args(command)
-	pb.Args(args...)
-	pb.Verbose(false)
-	return pb.Invoke()
+	return s.NewProcess().WithTimeout(timeout).WithArgs(command).WithArgs(args...).Verbose(false).Invoke()
 }
 
 func (s Shell) Executef(format string, timeout time.Duration, v ...any) (transport.Result, error) {
-	pb := s.NewProcess()
-	pb.Timeout(timeout)
-	pb.Args(fmt.Sprintf(format, v...))
-	pb.Verbose(false)
-	return pb.Invoke()
+	return s.NewProcess().WithTimeout(timeout).WithArgs(fmt.Sprintf(format, v...)).Verbose(false).Invoke()
 }
 
 func (s Shell) NewProcess() *transport.ProcessBuilder {
-	pb := transport.NewProcessBuilder(s.Address)
-	pb.Path(s.Adb)
-	pb.Command("shell")
-	return pb
+	return transport.NewProcessBuilder().WithSerial(&s.Address).WithPath(s.Adb).WithCommand("shell")
 }
 
 func (s Shell) Cat(filename string) (transport.Result, error) {
@@ -56,17 +44,17 @@ func (s Shell) Cat(filename string) (transport.Result, error) {
 }
 
 func (s Shell) Whoami() (transport.Result, error) {
-	return s.Execute("whoami", constants.DEFAULT_TIMEOUT)
+	return s.Execute("whoami", 0)
 }
 
 func (s Shell) Which(command string) (transport.Result, error) {
-	return s.Execute("which", constants.DEFAULT_TIMEOUT, command)
+	return s.Execute("which", 0, command)
 }
 
 // GetProp Execute the command "adb shell getprop key" and returns its value
 // if found, nil otherwise
 func (s Shell) GetProp(key string) *string {
-	result, err := s.Execute("getprop", constants.DEFAULT_TIMEOUT, key)
+	result, err := s.Execute("getprop", 0, key)
 	if err != nil {
 		return nil
 	}
@@ -82,7 +70,7 @@ func (s Shell) GetProp(key string) *string {
 // GetPropType Returns the property type.
 // Can be string, int, bool, enum [list string]
 func (s Shell) GetPropType(key string) (*string, bool) {
-	result, err := s.Execute("getprop", constants.DEFAULT_TIMEOUT, "-T", key)
+	result, err := s.Execute("getprop", 0, "-T", key)
 	if err != nil {
 		return nil, false
 	}
@@ -96,7 +84,7 @@ func (s Shell) GetPropType(key string) (*string, bool) {
 }
 
 func (s Shell) GetProps() ([]types.Pair[string, string], error) {
-	result, err := s.Execute("getprop", constants.DEFAULT_TIMEOUT)
+	result, err := s.Execute("getprop", 0)
 	if err != nil {
 		return nil, err
 	}
