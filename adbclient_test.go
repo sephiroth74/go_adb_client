@@ -43,11 +43,11 @@ func init() {
 	logging.SetLevel(goLogging.DEBUG)
 }
 
-func NewClient() *adbclient.Client[types.ClientAddr] {
+func NewClient() *adbclient.Client {
 	return adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
 }
 
-func AssertClientConnected[T types.Serial](t *testing.T, client *adbclient.Client[T]) {
+func AssertClientConnected[T types.Serial](t *testing.T, client *adbclient.Client) {
 	result, err := client.Connect()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk(), result.Output())
@@ -415,7 +415,7 @@ func TestDevice(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	device := adbclient.Device[types.ClientAddr]{Client: client}
+	device := adbclient.Device{Client: client}
 	deviceName := device.Name()
 	apiLevel := device.ApiLevel()
 	version := device.Version()
@@ -840,7 +840,7 @@ func TestScan(t *testing.T) {
 	services, _ := client.Mdns.Services()
 
 	for _, service := range services {
-		log.Infof("Mdns found: %s", service.Address.Serial())
+		log.Infof("Mdns found: %s", service.Address.GetSerialAddress())
 	}
 	log.Info("Done")
 }

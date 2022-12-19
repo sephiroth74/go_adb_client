@@ -8,19 +8,16 @@ import (
 	"strings"
 
 	"github.com/alecthomas/repr"
-	"github.com/sephiroth74/go_adb_client/logging"
 	"github.com/sephiroth74/go_adb_client/shell"
 	"github.com/sephiroth74/go_adb_client/types"
 )
 
-var log = logging.GetLogger("pm")
-
-type PackageManager[T types.Serial] struct {
-	Shell *shell.Shell[T]
+type PackageManager struct {
+	Shell *shell.Shell
 }
 
-func (p PackageManager[T]) Path(packagename string) (string, error) {
-	result, err := p.Shell.Execute("pm", 0, "path", packagename)
+func (p PackageManager) Path(packageName string) (string, error) {
+	result, err := p.Shell.Execute("pm", 0, "path", packageName)
 	if err != nil {
 		return "", err
 	}
@@ -32,11 +29,11 @@ func (p PackageManager[T]) Path(packagename string) (string, error) {
 	}
 }
 
-func (p PackageManager[T]) ListPackages(options *PackageOptions) ([]Package, error) {
+func (p PackageManager) ListPackages(options *PackageOptions) ([]Package, error) {
 	return p.ListPackagesWithFilter(options, "")
 }
 
-func (p PackageManager[T]) IsSystem(name string) (bool, error) {
+func (p PackageManager) IsSystem(name string) (bool, error) {
 	result, err := p.Shell.Execute(
 		fmt.Sprintf("pm dump %s | egrep '^ {1,}flags=' | egrep ' {1,}SYSTEM {1,}'", name), 0)
 
@@ -47,12 +44,12 @@ func (p PackageManager[T]) IsSystem(name string) (bool, error) {
 	return result.IsOk(), nil
 }
 
-func (p PackageManager[T]) Dump(name string) (transport.Result, error) {
+func (p PackageManager) Dump(name string) (transport.Result, error) {
 	return p.Shell.Executef("pm dump %s", 0, name)
 }
 
 // ListPackagesWithFilter List packages on the device
-func (p PackageManager[T]) ListPackagesWithFilter(options *PackageOptions, filter string) ([]Package, error) {
+func (p PackageManager) ListPackagesWithFilter(options *PackageOptions, filter string) ([]Package, error) {
 	//	list packages [-f] [-d] [-e] [-s] [-3] [-i] [-l] [-u] [-U]
 	//	[--show-versioncode] [--apex-only] [--uid UID] [--user USER_ID] [FILTER]
 	//  Prints all packages; optionally only those whose name contains
@@ -130,7 +127,7 @@ func (p PackageManager[T]) ListPackagesWithFilter(options *PackageOptions, filte
 	}
 }
 
-func (p PackageManager[T]) Install(src string, options *InstallOptions) (transport.Result, error) {
+func (p PackageManager) Install(src string, options *InstallOptions) (transport.Result, error) {
 	var args []string
 	if options != nil {
 		if options.RestrictPermissions {
@@ -162,7 +159,7 @@ func (p PackageManager[T]) Install(src string, options *InstallOptions) (transpo
 // -k: keep the data and cache directories around after package removal.
 // --user: remove the app from the given user.
 // --versionCode: only uninstall if the app has the given version code.
-func (p PackageManager[T]) Uninstall(packageName string, options *UninstallOptions) (transport.Result, error) {
+func (p PackageManager) Uninstall(packageName string, options *UninstallOptions) (transport.Result, error) {
 	var args []string
 	if options != nil {
 		if options.KeepData {
@@ -179,7 +176,7 @@ func (p PackageManager[T]) Uninstall(packageName string, options *UninstallOptio
 	return p.Shell.Execute("cmd package uninstall", 0, args...)
 }
 
-func (p PackageManager[T]) RuntimePermissions(packageName string) ([]types.PackagePermission, error) {
+func (p PackageManager) RuntimePermissions(packageName string) ([]types.PackagePermission, error) {
 	result, err := p.Dump(packageName)
 	if err != nil {
 		return nil, err
@@ -218,7 +215,7 @@ func (p PackageManager[T]) RuntimePermissions(packageName string) ([]types.Packa
 	return runtimePermissions, nil
 }
 
-func (p PackageManager[T]) InstallPermissions(packageName string) ([]types.PackagePermission, error) {
+func (p PackageManager) InstallPermissions(packageName string) ([]types.PackagePermission, error) {
 	result, err := p.Dump(packageName)
 	if err != nil {
 		return nil, err
@@ -232,7 +229,7 @@ func (p PackageManager[T]) InstallPermissions(packageName string) ([]types.Packa
 	return parser.InstallPermissions(), nil
 }
 
-func (p PackageManager[T]) RequestedPermissions(packageName string) ([]types.RequestedPermission, error) {
+func (p PackageManager) RequestedPermissions(packageName string) ([]types.RequestedPermission, error) {
 	result, err := p.Dump(packageName)
 	if err != nil {
 		return nil, err
@@ -247,15 +244,15 @@ func (p PackageManager[T]) RequestedPermissions(packageName string) ([]types.Req
 }
 
 // Clear executes a "pm clear packageName" on the connected device
-func (p PackageManager[T]) Clear(packageName string) (transport.Result, error) {
+func (p PackageManager) Clear(packageName string) (transport.Result, error) {
 	return p.Shell.Executef("pm clear", 0, packageName)
 }
 
-func (p PackageManager[T]) GrantPermission(packageName string, permission string) (transport.Result, error) {
+func (p PackageManager) GrantPermission(packageName string, permission string) (transport.Result, error) {
 	return p.Shell.Executef("pm grant %s %s", 0, packageName, permission)
 }
 
-func (p PackageManager[T]) RevokePermission(packageName string, permission string) (transport.Result, error) {
+func (p PackageManager) RevokePermission(packageName string, permission string) (transport.Result, error) {
 	return p.Shell.Executef("pm revoke %s %s", 0, packageName, permission)
 }
 

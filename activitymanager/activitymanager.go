@@ -6,14 +6,14 @@ import (
 	"github.com/sephiroth74/go_adb_client/types"
 )
 
-type ActivityManager[T types.Serial] struct {
-	Shell *shell.Shell[T]
+type ActivityManager struct {
+	Shell *shell.Shell
 }
 
-func (a ActivityManager[T]) Broadcast(intent *types.Intent) {
+func (a ActivityManager) Broadcast(intent *types.Intent) {
 	a.Shell.Execute("am", 0, "broadcast", intent.String())
 }
 
-func (a ActivityManager[T]) ForceStop(packageName string) (transport.Result, error) {
+func (a ActivityManager) ForceStop(packageName string) (transport.Result, error) {
 	return a.Shell.Executef("am force-stop %s", 0, packageName)
 }

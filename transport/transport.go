@@ -114,16 +114,16 @@ type TransportCommand struct {
 	args    []string
 }
 
-type ProcessBuilder[T types.Serial] struct {
-	serial  *T
+type ProcessBuilder struct {
+	serial  *types.Serial
 	timeout time.Duration
 	command *TransportCommand
 	verbose bool
 	stdout  *os.File
 }
 
-func NewProcessBuilder[T types.Serial](t T) *ProcessBuilder[T] {
-	b := new(ProcessBuilder[T])
+func NewProcessBuilder(t types.Serial) *ProcessBuilder {
+	b := new(ProcessBuilder)
 	b.serial = &t
 	b.timeout = 0
 	b.command = &TransportCommand{
@@ -136,56 +136,56 @@ func NewProcessBuilder[T types.Serial](t T) *ProcessBuilder[T] {
 	return b
 }
 
-func (p *ProcessBuilder[T]) Args(args ...string) {
+func (p *ProcessBuilder) Args(args ...string) {
 	p.command.args = append(p.command.args, args...)
 }
 
-func (p *ProcessBuilder[T]) Verbose(value bool) {
+func (p *ProcessBuilder) Verbose(value bool) {
 	p.verbose = value
 }
 
-func (p *ProcessBuilder[T]) Stdout(value *os.File) {
+func (p *ProcessBuilder) Stdout(value *os.File) {
 	p.stdout = value
 }
 
-func (p *ProcessBuilder[T]) Timeout(time time.Duration) {
+func (p *ProcessBuilder) Timeout(time time.Duration) {
 	p.timeout = time
 }
 
-func (p *ProcessBuilder[T]) Path(path *string) {
+func (p *ProcessBuilder) Path(path *string) {
 	p.command.path = path
 }
 
-func (p *ProcessBuilder[T]) Command(command string) {
+func (p *ProcessBuilder) Command(command string) {
 	p.command.command = &command
 }
 
-func (p *ProcessBuilder[T]) Invoke() (Result, error) {
+func (p *ProcessBuilder) Invoke() (Result, error) {
 	if p.verbose {
 		log.Debugf(repr.String(p.command))
 	}
 
 	var adb = filepath.Base(*p.command.path)
-	final_args := []string{}
+	var finalArgs []string
 
 	if p.serial != nil {
 		var p3 = *p.serial
-		final_args = append(final_args, "-s", p3.Serial())
+		finalArgs = append(finalArgs, "-s", p3.GetSerialAddress())
 	}
 
-	final_args = append(final_args, *p.command.command)
-	final_args = append(final_args, p.command.args...)
+	finalArgs = append(finalArgs, *p.command.command)
+	finalArgs = append(finalArgs, p.command.args...)
 
-	log.Debugf("Executing (timeout=%s) `%s %s`", p.timeout.String(), adb, strings.Join(final_args, " "))
+	log.Debugf("Executing (timeout=%s) `%s %s`", p.timeout.String(), adb, strings.Join(finalArgs, " "))
 
 	var cmd *exec.Cmd = nil
 
 	if p.timeout > 0 {
 		var ctx, cancel = context.WithTimeout(context.Background(), p.timeout)
 		defer cancel()
-		cmd = exec.CommandContext(ctx, *p.command.path, final_args...)
+		cmd = exec.CommandContext(ctx, *p.command.path, finalArgs...)
 	} else {
-		cmd = exec.Command(*p.command.path, final_args...)
+		cmd = exec.Command(*p.command.path, finalArgs...)
 	}
 
 	var outb, errb bytes.Buffer

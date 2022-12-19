@@ -15,40 +15,40 @@ import (
 	"github.com/sephiroth74/go_adb_client/types"
 )
 
-type Client[T types.Serial] struct {
+type Client struct {
 	Conn    *connection.Connection
 	Mdns    *mdns.Mdns
 	Channel chan rxgo.Item
-	Serial  T
-	Shell   *shell.Shell[T]
+	Address types.Serial
+	Shell   *shell.Shell
 }
 
-func NewClient[T types.Serial](device T) *Client[T] {
+func NewClient(device types.Serial) *Client {
 	var conn = connection.NewConnection()
-	client := new(Client[T])
+	client := new(Client)
 	client.Conn = conn
 	client.Mdns = mdns.NewMdns(client.Conn)
-	client.Serial = device
+	client.Address = device
 	client.Channel = make(chan rxgo.Item)
 	client.Shell = shell.NewShell(&conn.ADBPath, device)
 	return client
 }
 
-func NullClient() *Client[types.ClientAddr] {
+func NullClient() *Client {
 	return NewClient(types.ClientAddr{IP: net.IPv4(127, 0, 0, 1), Port: 5555})
 }
 
-func (c Client[T]) NewProcess() *transport.ProcessBuilder[T] {
-	pb := transport.NewProcessBuilder(c.Serial)
+func (c Client) NewProcess() *transport.ProcessBuilder {
+	pb := transport.NewProcessBuilder(c.Address)
 	pb.Path(&c.Conn.ADBPath)
 	return pb
 }
 
-func (c Client[T]) DeferredDispatch(eventType events.EventType) {
+func (c Client) DeferredDispatch(eventType events.EventType) {
 	defer func() { go func() { c.Channel <- rxgo.Of(events.AdbEvent{Event: eventType}) }() }()
 }
 
-func (c Client[T]) Dispatch(eventType events.EventType, data interface{}) {
+func (c Client) Dispatch(eventType events.EventType, data interface{}) {
 	go func() { c.Channel <- rxgo.Of(events.AdbEvent{Event: eventType, Item: data}) }()
 }
 
@@ -60,12 +60,12 @@ func WaitAndReturn(result *transport.Result, err error, timeout time.Duration) (
 	return *result, err
 }
 
-func (c Client[T]) Connect() (transport.Result, error) {
+func (c Client) Connect() (transport.Result, error) {
 	conn, err := c.IsConnected()
 	if err == nil && conn {
 		return transport.OkResult("Already Connected"), nil
 	}
-	result, err := c.Conn.Connect(c.Serial.Serial())
+	result, err := c.Conn.Connect(c.Address.GetSerialAddress())
 
 	if err != nil {
 		return transport.ErrorResult(result.Output()), err
@@ -77,111 +77,111 @@ func (c Client[T]) Connect() (transport.Result, error) {
 	}
 
 	if conn {
-		defer c.Dispatch(events.Connected, c.Serial)
-		return transport.OkResult(fmt.Sprintf("connected to %s", c.Serial.String())), nil
+		defer c.Dispatch(events.Connected, c.Address)
+		return transport.OkResult(fmt.Sprintf("connected to %s", c.Address.String())), nil
 	} else {
-		return transport.ErrorResult(fmt.Sprintf("Unable to connect to %s", c.Serial.String())), nil
+		return transport.ErrorResult(fmt.Sprintf("Unable to connect to %s", c.Address.String())), nil
 	}
 }
 
-func (c Client[T]) Reconnect() (transport.Result, error) {
-	return c.Conn.Reconnect(c.Serial.Serial())
+func (c Client) Reconnect() (transport.Result, error) {
+	return c.Conn.Reconnect(c.Address.GetSerialAddress())
 }
 
-func (c Client[T]) IsConnected() (bool, error) {
-	result, err := c.Conn.GetState(c.Serial.Serial())
+func (c Client) IsConnected() (bool, error) {
+	result, err := c.Conn.GetState(c.Address.GetSerialAddress())
 	if err != nil {
 		return false, err
 	}
 	return result.IsOk(), nil
 }
 
-func (c Client[T]) Disconnect() (transport.Result, error) {
+func (c Client) Disconnect() (transport.Result, error) {
 	connected, err := c.IsConnected()
 	if err == nil && !connected {
 		return transport.OkResult(""), nil
 	}
 
-	result, err := c.Conn.Disconnect(c.Serial.Serial())
+	result, err := c.Conn.Disconnect(c.Address.GetSerialAddress())
 
 	if err == nil && result.IsOk() {
-		defer c.Dispatch(events.Disconnect, c.Serial)
+		defer c.Dispatch(events.Disconnect, c.Address)
 	}
 
 	return result, err
 }
 
-func (c Client[T]) DisconnectAll() (transport.Result, error) {
+func (c Client) DisconnectAll() (transport.Result, error) {
 	return c.Conn.DisconnectAll()
 }
 
-func (c Client[T]) WaitForDevice() (transport.Result, error) {
-	return c.Conn.WaitForDevice(c.Serial.Serial())
+func (c Client) WaitForDevice() (transport.Result, error) {
+	return c.Conn.WaitForDevice(c.Address.GetSerialAddress())
 }
 
-func (c Client[T]) WaitForDeviceWithTimeout(timeout time.Duration) (transport.Result, error) {
-	return c.Conn.WaitForDeviceWithTimeout(c.Serial.Serial(), timeout)
+func (c Client) WaitForDeviceWithTimeout(timeout time.Duration) (transport.Result, error) {
+	return c.Conn.WaitForDeviceWithTimeout(c.Address.GetSerialAddress(), timeout)
 }
 
-func (c Client[T]) Root() (transport.Result, error) {
-	result, err := c.Conn.Root(c.Serial.Serial())
+func (c Client) Root() (transport.Result, error) {
+	result, err := c.Conn.Root(c.Address.GetSerialAddress())
 	return WaitAndReturn(&result, err, time.Duration(1)*time.Second)
 }
 
-func (c Client[T]) IsRoot() (bool, error) {
-	return c.Conn.IsRoot(c.Serial.Serial())
+func (c Client) IsRoot() (bool, error) {
+	return c.Conn.IsRoot(c.Address.GetSerialAddress())
 }
 
-func (c Client[T]) UnRoot() (transport.Result, error) {
-	result, err := c.Conn.UnRoot(c.Serial.Serial())
+func (c Client) UnRoot() (transport.Result, error) {
+	result, err := c.Conn.UnRoot(c.Address.GetSerialAddress())
 	return WaitAndReturn(&result, err, time.Duration(1)*time.Second)
 }
 
-func (c Client[T]) ListDevices() ([]*types.Device, error) {
+func (c Client) ListDevices() ([]*types.Device, error) {
 	return c.Conn.ListDevices()
 }
 
-func (c Client[T]) Reboot() (transport.Result, error) {
-	return c.Conn.Reboot(c.Serial.Serial())
+func (c Client) Reboot() (transport.Result, error) {
+	return c.Conn.Reboot(c.Address.GetSerialAddress())
 }
 
-func (c Client[T]) Remount() (transport.Result, error) {
-	result, err := c.Conn.Remount(c.Serial.Serial())
+func (c Client) Remount() (transport.Result, error) {
+	result, err := c.Conn.Remount(c.Address.GetSerialAddress())
 	return WaitAndReturn(&result, err, time.Duration(1)*time.Second)
 }
 
-func (c Client[T]) Mount(dir string) (transport.Result, error) {
-	result, err := c.Conn.Unmount(c.Serial.Serial(), dir)
+func (c Client) Mount(dir string) (transport.Result, error) {
+	result, err := c.Conn.Unmount(c.Address.GetSerialAddress(), dir)
 	return WaitAndReturn(&result, err, time.Duration(1)*time.Second)
 }
 
-func (c Client[T]) Unmount(dir string) (transport.Result, error) {
-	result, err := c.Conn.Unmount(c.Serial.Serial(), dir)
+func (c Client) Unmount(dir string) (transport.Result, error) {
+	result, err := c.Conn.Unmount(c.Address.GetSerialAddress(), dir)
 	return WaitAndReturn(&result, err, time.Duration(1)*time.Second)
 }
 
 // BugReport Execute and return the result of the command 'adb bugreport'
 // dst: optional target local folder/filename for the bugreport
-func (c Client[T]) BugReport(dst string) (transport.Result, error) {
-	result, err := c.Conn.BugReport(c.Serial.Serial(), dst)
+func (c Client) BugReport(dst string) (transport.Result, error) {
+	result, err := c.Conn.BugReport(c.Address.GetSerialAddress(), dst)
 	return WaitAndReturn(&result, err, 0)
 }
 
 // Pull a file from the device.
 // src is the file to be pulled from the device.
 // dst is the destination filepath on the host.
-func (c Client[T]) Pull(src string, dst string) (transport.Result, error) {
-	return c.Conn.Pull(c.Serial.Serial(), src, dst)
+func (c Client) Pull(src string, dst string) (transport.Result, error) {
+	return c.Conn.Pull(c.Address.GetSerialAddress(), src, dst)
 }
 
 // Push a file to the connected device.
 // src is the host file to be pushed.
 // dst is the target device where the file should be pushed to.
-func (c Client[T]) Push(src string, dst string) (transport.Result, error) {
-	return c.Conn.Push(c.Serial.Serial(), src, dst)
+func (c Client) Push(src string, dst string) (transport.Result, error) {
+	return c.Conn.Push(c.Address.GetSerialAddress(), src, dst)
 }
 
-func (c Client[T]) Install(src string, options *InstallOptions) (transport.Result, error) {
+func (c Client) Install(src string, options *InstallOptions) (transport.Result, error) {
 	var args []string
 	if options != nil {
 		if options.KeepData {
@@ -200,11 +200,11 @@ func (c Client[T]) Install(src string, options *InstallOptions) (transport.Resul
 	return c.Conn.Install(src, args...)
 }
 
-func (c Client[T]) Uninstall(packageName string) (transport.Result, error) {
+func (c Client) Uninstall(packageName string) (transport.Result, error) {
 	return c.Conn.Uninstall(packageName)
 }
 
-func (c Client[T]) Logcat(options LogcatOptions) (transport.Result, error) {
+func (c Client) Logcat(options LogcatOptions) (transport.Result, error) {
 	args := []string{"logcat"}
 
 	if options.Expr != "" {
@@ -247,7 +247,7 @@ func (c Client[T]) Logcat(options LogcatOptions) (transport.Result, error) {
 //
 //
 
-func (c Client[T]) TryIsConnected() bool {
+func (c Client) TryIsConnected() bool {
 	result, err := c.IsConnected()
 	if err != nil {
 		return false
@@ -255,7 +255,7 @@ func (c Client[T]) TryIsConnected() bool {
 	return result
 }
 
-func (c Client[T]) TryIsRoot() bool {
+func (c Client) TryIsRoot() bool {
 	if c.TryIsConnected() {
 		result, err := c.IsRoot()
 		if err != nil {
@@ -266,7 +266,7 @@ func (c Client[T]) TryIsRoot() bool {
 	return false
 }
 
-func (c Client[T]) TryRoot() bool {
+func (c Client) TryRoot() bool {
 	if c.TryIsConnected() {
 		if c.TryIsRoot() {
 			return true

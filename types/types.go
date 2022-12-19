@@ -20,19 +20,19 @@ type Pair[K interface{}, V interface{}] struct {
 
 // endregion Pair
 
-// region Serial
+// region GetSerialAddress
 
 type Serial interface {
-	ClientAddr | Device | MdnsDevice
-	Serial() string
+	GetSerialAddress() string
 	String() string
 }
 
-// endregion Serial
+// endregion GetSerialAddress
 
 // region ClientAddr
 
 type ClientAddr struct {
+	Serial
 	IP   net.IP
 	Port int
 }
@@ -45,7 +45,7 @@ func (c ClientAddr) String() string {
 	return fmt.Sprintf("ClientAddr{IP:%s, Port=%d}", c.IP, c.Port)
 }
 
-func (c ClientAddr) Serial() string {
+func (c ClientAddr) GetSerialAddress() string {
 	return fmt.Sprintf("%s:%d", c.IP, c.Port)
 }
 
@@ -80,6 +80,7 @@ func NewClientAddress(addr *string) (*ClientAddr, error) {
 // region Device
 
 type Device struct {
+	Serial
 	Addr      ClientAddr
 	Product   []byte
 	Model     []byte
@@ -87,8 +88,8 @@ type Device struct {
 	Transport []byte
 }
 
-func (m Device) Serial() string {
-	return m.Addr.Serial()
+func (m Device) GetSerialAddress() string {
+	return m.Addr.GetSerialAddress()
 }
 
 func (m Device) String() string {
@@ -112,12 +113,13 @@ func NewDevice(addr *string) (*Device, error) {
 // region MdnsDevice
 
 type MdnsDevice struct {
+	Serial
 	Name           string
 	ConnectionType string
 	Address        ClientAddr
 }
 
-func (m MdnsDevice) Serial() string {
+func (m MdnsDevice) GetSerialAddress() string {
 	return fmt.Sprintf("%s.%s", m.Name, m.ConnectionType)
 }
 
@@ -126,13 +128,13 @@ func (m MdnsDevice) String() string {
 }
 
 func NewMdnsDevice(name string, ctype string, addr *string) (*MdnsDevice, error) {
-	client_addr, err := NewClientAddress(addr)
+	clientAddr, err := NewClientAddress(addr)
 	if err != nil {
 		return nil, err
 	}
 
 	mdns := new(MdnsDevice)
-	mdns.Address = *client_addr
+	mdns.Address = *clientAddr
 	mdns.Name = name
 	mdns.ConnectionType = ctype
 	return mdns, nil

@@ -14,19 +14,20 @@ import (
 	"github.com/sephiroth74/go_adb_client/util/constants"
 )
 
-type Shell[T types.Serial] struct {
-	Serial T
-	Adb    *string
+type Shell struct {
+	Address types.Serial
+	Adb     *string
 }
 
-func NewShell[T types.Serial](adb *string, serial T) *Shell[T] {
-	var s = new(Shell[T])
-	s.Serial = serial
-	s.Adb = adb
-	return s
+func NewShell(adb *string, serial types.Serial) *Shell {
+	var s = Shell{
+		Address: serial,
+		Adb:     adb,
+	}
+	return &s
 }
 
-func (s Shell[T]) Execute(command string, timeout time.Duration, args ...string) (transport.Result, error) {
+func (s Shell) Execute(command string, timeout time.Duration, args ...string) (transport.Result, error) {
 	pb := s.NewProcess()
 	pb.Timeout(timeout)
 	pb.Args(command)
@@ -35,7 +36,7 @@ func (s Shell[T]) Execute(command string, timeout time.Duration, args ...string)
 	return pb.Invoke()
 }
 
-func (s Shell[T]) Executef(format string, timeout time.Duration, v ...any) (transport.Result, error) {
+func (s Shell) Executef(format string, timeout time.Duration, v ...any) (transport.Result, error) {
 	pb := s.NewProcess()
 	pb.Timeout(timeout)
 	pb.Args(fmt.Sprintf(format, v...))
@@ -43,28 +44,28 @@ func (s Shell[T]) Executef(format string, timeout time.Duration, v ...any) (tran
 	return pb.Invoke()
 }
 
-func (s Shell[T]) NewProcess() *transport.ProcessBuilder[T] {
-	pb := transport.NewProcessBuilder(s.Serial)
+func (s Shell) NewProcess() *transport.ProcessBuilder {
+	pb := transport.NewProcessBuilder(s.Address)
 	pb.Path(s.Adb)
 	pb.Command("shell")
 	return pb
 }
 
-func (s Shell[T]) Cat(filename string) (transport.Result, error) {
+func (s Shell) Cat(filename string) (transport.Result, error) {
 	return s.Execute("cat", 0, filename)
 }
 
-func (s Shell[T]) Whoami() (transport.Result, error) {
+func (s Shell) Whoami() (transport.Result, error) {
 	return s.Execute("whoami", constants.DEFAULT_TIMEOUT)
 }
 
-func (s Shell[T]) Which(command string) (transport.Result, error) {
+func (s Shell) Which(command string) (transport.Result, error) {
 	return s.Execute("which", constants.DEFAULT_TIMEOUT, command)
 }
 
-// Execute the command "adb shell getprop key" and returns its value
+// GetProp Execute the command "adb shell getprop key" and returns its value
 // if found, nil otherwise
-func (s Shell[T]) GetProp(key string) *string {
+func (s Shell) GetProp(key string) *string {
 	result, err := s.Execute("getprop", constants.DEFAULT_TIMEOUT, key)
 	if err != nil {
 		return nil
@@ -78,9 +79,9 @@ func (s Shell[T]) GetProp(key string) *string {
 	}
 }
 
-// Returns the property type.
+// GetPropType Returns the property type.
 // Can be string, int, bool, enum [list string]
-func (s Shell[T]) GetPropType(key string) (*string, bool) {
+func (s Shell) GetPropType(key string) (*string, bool) {
 	result, err := s.Execute("getprop", constants.DEFAULT_TIMEOUT, "-T", key)
 	if err != nil {
 		return nil, false
@@ -94,7 +95,7 @@ func (s Shell[T]) GetPropType(key string) (*string, bool) {
 	}
 }
 
-func (s Shell[T]) GetProps() ([]types.Pair[string, string], error) {
+func (s Shell) GetProps() ([]types.Pair[string, string], error) {
 	result, err := s.Execute("getprop", constants.DEFAULT_TIMEOUT)
 	if err != nil {
 		return nil, err
@@ -111,7 +112,7 @@ func (s Shell[T]) GetProps() ([]types.Pair[string, string], error) {
 	}
 }
 
-func (s Shell[T]) SetProp(key string, value string) bool {
+func (s Shell) SetProp(key string, value string) bool {
 	result, err := s.Execute("setprop", constants.DEFAULT_TIMEOUT, key, value)
 	if err != nil {
 		return false
@@ -119,23 +120,23 @@ func (s Shell[T]) SetProp(key string, value string) bool {
 	return result.IsOk()
 }
 
-func (s Shell[T]) Exists(filename string) bool {
+func (s Shell) Exists(filename string) bool {
 	return testFile(s, filename, "e")
 }
 
-func (s Shell[T]) IsFile(filename string) bool {
+func (s Shell) IsFile(filename string) bool {
 	return testFile(s, filename, "f")
 }
 
-func (s Shell[T]) IsDir(filename string) bool {
+func (s Shell) IsDir(filename string) bool {
 	return testFile(s, filename, "d")
 }
 
-func (s Shell[T]) IsSymlink(filename string) bool {
+func (s Shell) IsSymlink(filename string) bool {
 	return testFile(s, filename, "h")
 }
 
-func (s Shell[T]) Remove(filename string, force bool) (bool, error) {
+func (s Shell) Remove(filename string, force bool) (bool, error) {
 	var command string
 	if force {
 		command = fmt.Sprintf("rm -f %s", filename)
@@ -149,11 +150,11 @@ func (s Shell[T]) Remove(filename string, force bool) (bool, error) {
 	return result.IsOk(), nil
 }
 
-func (s Shell[T]) SendKeyEvent(event input.KeyCode) (transport.Result, error) {
+func (s Shell) SendKeyEvent(event input.KeyCode) (transport.Result, error) {
 	return s.SendKeyEvents(event)
 }
 
-func (s Shell[T]) SendKeyEvents(events ...input.KeyCode) (transport.Result, error) {
+func (s Shell) SendKeyEvents(events ...input.KeyCode) (transport.Result, error) {
 	var format = make([]string, len(events))
 	for i, v := range events {
 		format[i] = fmt.Sprintf("%s", v.String())
@@ -161,16 +162,16 @@ func (s Shell[T]) SendKeyEvents(events ...input.KeyCode) (transport.Result, erro
 	return s.Executef("input keyevent %s", 0, strings.Join(format, " "))
 }
 
-func (s Shell[T]) SendChar(code rune) (transport.Result, error) {
+func (s Shell) SendChar(code rune) (transport.Result, error) {
 	return s.Executef("input text %c", 0, code)
 }
 
-func (s Shell[T]) SendString(value string) (transport.Result, error) {
+func (s Shell) SendString(value string) (transport.Result, error) {
 	return s.Executef("input text '%s'", 0, value)
 }
 
 // Returns a slice of Pairs each one containing the event type and the event name
-func (s Shell[T]) GetEvents() ([]types.Pair[string, string], error) {
+func (s Shell) GetEvents() ([]types.Pair[string, string], error) {
 	result, err := s.Execute("getevent", 0, "-p")
 	if err != nil {
 		return nil, err
@@ -215,7 +216,7 @@ func parsePropLine(line string) (types.Pair[string, string], error) {
 	}
 }
 
-func testFile[T types.Serial](shell Shell[T], filename string, mode string) bool {
+func testFile(shell Shell, filename string, mode string) bool {
 	result, err := shell.Execute(fmt.Sprintf("test -%s %s && echo 1 || echo 0", mode, filename), 0)
 	if err != nil || !result.IsOk() {
 		return false
