@@ -330,7 +330,7 @@ func TestShellCat(t *testing.T) {
 	var client = NewClient()
 	AssertClientConnected(t, client)
 
-	assert.True(t, client.TryRoot())
+	assert.True(t, client.MustRoot())
 
 	result, err := client.Shell.Whoami()
 	assert.Nil(t, err)
@@ -844,7 +844,7 @@ func TestLogcat(t *testing.T) {
 
 	since := time.Now().Add(-3 * time.Hour)
 
-	result, err := client.Logcat(adbclient.LogcatOptions{
+	result, err := client.Logcat(types.LogcatOptions{
 		Expr:     "Authorization: Bearer ([0-9a-zA-Z-]+)",
 		Dump:     true,
 		Filename: "",

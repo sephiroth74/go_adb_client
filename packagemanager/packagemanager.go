@@ -29,7 +29,7 @@ func (p PackageManager) Path(packageName string) (string, error) {
 	}
 }
 
-func (p PackageManager) ListPackages(options *PackageOptions) ([]Package, error) {
+func (p PackageManager) ListPackages(options PackageOptions) ([]Package, error) {
 	return p.ListPackagesWithFilter(options, "")
 }
 
@@ -49,7 +49,7 @@ func (p PackageManager) Dump(name string) (transport.Result, error) {
 }
 
 // ListPackagesWithFilter List packages on the device
-func (p PackageManager) ListPackagesWithFilter(options *PackageOptions, filter string) ([]Package, error) {
+func (p PackageManager) ListPackagesWithFilter(options PackageOptions, filter string) ([]Package, error) {
 	//	list packages [-f] [-d] [-e] [-s] [-3] [-i] [-l] [-u] [-U]
 	//	[--show-versioncode] [--apex-only] [--uid UID] [--user USER_ID] [FILTER]
 	//  Prints all packages; optionally only those whose name contains
@@ -70,19 +70,17 @@ func (p PackageManager) ListPackagesWithFilter(options *PackageOptions, filter s
 	//	--user USER_ID: only list packages belonging to the given user
 	args := []string{"list", "packages", "-f", "-U", "--show-versioncode"}
 
-	if options != nil {
-		if options.ShowOnly3rdParty {
-			args = append(args, "-3")
-		}
-		if options.ShowOnlyDisabled {
-			args = append(args, "-d")
-		}
-		if options.ShowOnlyEnabed {
-			args = append(args, "-e")
-		}
-		if options.ShowOnlySystem {
-			args = append(args, "-s")
-		}
+	if options.ShowOnly3rdParty {
+		args = append(args, "-3")
+	}
+	if options.ShowOnlyDisabled {
+		args = append(args, "-d")
+	}
+	if options.ShowOnlyEnabed {
+		args = append(args, "-e")
+	}
+	if options.ShowOnlySystem {
+		args = append(args, "-s")
 	}
 
 	if filter != "" {
@@ -241,6 +239,20 @@ func (p PackageManager) RequestedPermissions(packageName string) ([]types.Reques
 
 	var parser = NewPackageReader(result.Output())
 	return parser.RequestedPermissions(), nil
+}
+
+func (p PackageManager) DumpPackage(packageName string) (*SimplePackageReader, error) {
+	result, err := p.Dump(packageName)
+	if err != nil {
+		return nil, err
+	}
+
+	if !result.IsOk() {
+		return nil, result.NewError()
+	}
+
+	var parser = NewPackageReader(result.Output())
+	return parser, nil
 }
 
 // Clear executes a "pm clear packageName" on the connected device

@@ -202,7 +202,7 @@ func (c Client) Uninstall(packageName string) (transport.Result, error) {
 	return c.Conn.Uninstall(c.Address.GetSerialAddress(), packageName)
 }
 
-func (c Client) Logcat(options LogcatOptions) (transport.Result, error) {
+func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
 	args := []string{}
 
 	if options.Expr != "" {
@@ -227,7 +227,7 @@ func (c Client) Logcat(options LogcatOptions) (transport.Result, error) {
 	}
 
 	if len(options.Tags) > 0 {
-		tags, _ := util.Map(options.Tags, func(tag LogcatTag) (string, error) {
+		tags, _ := util.Map(options.Tags, func(tag types.LogcatTag) (string, error) {
 			return tag.String(), nil
 		})
 		args = append(args, tags...)
@@ -252,7 +252,7 @@ func (c Client) Logcat(options LogcatOptions) (transport.Result, error) {
 //
 //
 
-func (c Client) TryIsConnected() bool {
+func (c Client) GetIsConnected() bool {
 	result, err := c.IsConnected()
 	if err != nil {
 		return false
@@ -260,8 +260,8 @@ func (c Client) TryIsConnected() bool {
 	return result
 }
 
-func (c Client) TryIsRoot() bool {
-	if c.TryIsConnected() {
+func (c Client) GetIsRoot() bool {
+	if c.GetIsConnected() {
 		result, err := c.IsRoot()
 		if err != nil {
 			return false
@@ -271,16 +271,16 @@ func (c Client) TryIsRoot() bool {
 	return false
 }
 
-func (c Client) TryRoot() bool {
-	if c.TryIsConnected() {
-		if c.TryIsRoot() {
+func (c Client) MustRoot() bool {
+	if c.GetIsConnected() {
+		if c.GetIsRoot() {
 			return true
 		} else {
 			_, err := c.Root()
 			if err != nil {
 				return false
 			}
-			return c.TryIsRoot()
+			return c.GetIsRoot()
 		}
 	}
 	return false
@@ -295,42 +295,4 @@ type InstallOptions struct {
 	AllowDowngrade bool
 	// -g grant all runtime permissions
 	GrantPermissions bool
-}
-
-type LogcatOptions struct {
-	// -e Only prints lines where the log message matches <expr>, where <expr> is a regular expression.
-	Expr string
-	// -d	Dumps the log to the screen and exits.
-	Dump bool
-	// -f <filename>	Writes log message output to <filename>. The default is stdout.
-	Filename string
-	// -s	Equivalent to the filter expression '*:S', which sets priority for all tags to silent and is used to precede a list of filter expressions that add content.
-	Tags []LogcatTag
-	// -v <format>	Sets the output format for log messages. The default is the threadtime format
-	Format string
-	// -t '<time>'	Prints the most recent lines since the specified time. This option includes -d functionality. See the -P option for information about quoting parameters with embedded spaces.
-	Since *time.Time
-	// --pid=<pid> ...
-	Pids []string
-
-	Timeout time.Duration
-}
-
-type LogcatLevel string
-
-const (
-	LogcatVerbose LogcatLevel = "V"
-	LogcatDebug   LogcatLevel = "D"
-	LogcatInfo    LogcatLevel = "I"
-	LogcatWarn    LogcatLevel = "W"
-	LogcatError   LogcatLevel = "E"
-)
-
-type LogcatTag struct {
-	Name  string
-	Level LogcatLevel
-}
-
-func (l LogcatTag) String() string {
-	return fmt.Sprintf("%s:%s", l.Name, l.Level)
 }
