@@ -51,7 +51,7 @@ func (d Device) WriteScreenCap(output *os.File) (transport.Result, error) {
 	var pb = d.Client.NewProcess()
 	pb.WithCommand("exec-out")
 	pb.WithArgs("screencap", "-p")
-	pb.Verbose(true)
+	pb.Verbose(false)
 	pb.WithStdout(output)
 	return pb.Invoke()
 }
