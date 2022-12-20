@@ -14,12 +14,18 @@ type Mdns struct {
 }
 
 func (m Mdns) Check() (transport.Result, error) {
-	return transport.NewProcessBuilder().WithPath(&m.Conn.ADBPath).WithCommand("mdns").WithArgs("check").Invoke()
+	return transport.NewProcessBuilder().WithPath(&m.Conn.ADBPath).
+		WithCommand("mdns").
+		WithArgs("check").
+		Invoke()
 }
 
 func (m Mdns) Services() ([]types.MdnsDevice, error) {
 	// adb-JA37001FF3	_adb._tcp.	192.168.1.105:5555
-	result, err := transport.NewProcessBuilder().WithPath(&m.Conn.ADBPath).WithCommand("mdns").WithArgs("services").Invoke()
+	result, err := transport.NewProcessBuilder().WithPath(&m.Conn.ADBPath).
+		WithCommand("mdns").
+		WithArgs("services").
+		Invoke()
 	if err != nil {
 		return nil, err
 	}

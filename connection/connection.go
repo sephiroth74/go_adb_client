@@ -47,12 +47,13 @@ func (c Connection) Version() (string, error) {
 }
 
 func (c Connection) Connect(addr string) (transport.Result, error) {
-	p := transport.NewProcessBuilder()
-	p.WithCommand(c.ADBPath)
-	p.WithArgs("connect", addr)
-	p.WithTimeout(waitForDeviceTimeout)
+	p := transport.NewProcessBuilder().
+		WithPath(&c.ADBPath).
+		WithCommand("connect").
+		WithArgs(addr).
+		WithTimeout(waitForDeviceTimeout).
+		Verbose(false)
 	return p.Invoke()
-	//return transport.InvokeWithTimeout(&c.ADBPath, waitForDeviceTimeout, "connect", addr)
 }
 
 func (c Connection) Reconnect(addr string) (transport.Result, error) {

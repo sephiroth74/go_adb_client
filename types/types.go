@@ -152,6 +152,7 @@ type Intent struct {
 	MimeType  string
 	Category  string
 	Component string
+	Package   string
 	Flags     int32
 	Extra     Extras
 	UserId    UserId
@@ -196,6 +197,10 @@ func (i Intent) String() string {
 
 	if i.Component != "" {
 		sb = append(sb, fmt.Sprintf("-n %s", i.Component))
+	}
+
+	if i.Package != "" {
+		sb = append(sb, fmt.Sprintf("-p %s", i.Package))
 	}
 
 	if !reflect.DeepEqual(Extras{}, i.Extra) {
