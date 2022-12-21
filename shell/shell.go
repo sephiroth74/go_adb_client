@@ -3,6 +3,7 @@ package shell
 import (
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -158,7 +159,7 @@ func (s Shell) SendString(value string) (transport.Result, error) {
 	return s.Executef("input text '%s'", 0, value)
 }
 
-// Returns a slice of Pairs each one containing the event type and the event name
+// GetEvents Returns a slice of Pairs each one containing the event type and the event name
 func (s Shell) GetEvents() ([]types.Pair[string, string], error) {
 	result, err := s.Execute("getevent", 0, "-p")
 	if err != nil {
@@ -167,6 +168,38 @@ func (s Shell) GetEvents() ([]types.Pair[string, string], error) {
 
 	arr := parseEvents(result.Output())
 	return arr, nil
+}
+
+func (s Shell) ScreenRecord(options ScreenRecordOptions, c chan os.Signal, filename string) (transport.Result, error) {
+	var pb = s.NewProcess()
+
+	args := []string{"screenrecord"}
+	args = append(args, "--bit-rate", fmt.Sprintf("%d", options.Bitrate))
+
+	if options.Timelimit > 0 {
+		args = append(args, "--time-limit", fmt.Sprintf("%d", options.Timelimit))
+	}
+
+	if options.Rotate {
+		args = append(args, "--rotate")
+	}
+
+	if options.BugReport {
+		args = append(args, "--bugreport")
+	}
+
+	if options.Verbose {
+		args = append(args, "--verbose")
+	}
+
+	if options.Size != nil {
+		args = append(args, "--size", options.Size.String())
+	}
+
+	args = append(args, filename)
+
+	pb.WithArgs(args...)
+	return pb.InvokeWithCancel(c)
 }
 
 //
@@ -210,4 +243,45 @@ func testFile(shell Shell, filename string, mode string) bool {
 		return false
 	}
 	return result.Output() == "1"
+}
+
+// types
+
+type ScreenRecordOptions struct {
+	// --bit-rate 4000000
+	// Set the video bit rate, in bits per second. Value may be specified as bits or megabits, e.g. '4000000' is equivalent to '4M'.
+	// Default 20Mbps.
+	Bitrate uint64
+
+	// --time-limit=120 (in seconds)
+	// Set the maximum recording time, in seconds. Default / maximum is 180
+	Timelimit uint
+
+	// --rotate
+	// Rotates the output 90 degrees. This feature is experimental.
+	Rotate bool
+
+	// --bugreport
+	// Add additional information, such as a timestamp overlay, that is helpful in videos captured to illustrate bugs.
+	BugReport bool
+
+	// --size 1280x720
+	// Set the video size, e.g. "1280x720". Default is the device's main display resolution (if supported), 1280x720 if not.
+	// For best results, use a size supported by the AVC encoder.
+	Size *types.Size
+
+	// --verbose
+	// Display interesting information on stdout
+	Verbose bool
+}
+
+func NewScreenRecordOptions() ScreenRecordOptions {
+	return ScreenRecordOptions{
+		Bitrate:   20000000,
+		Timelimit: 180,
+		Rotate:    false,
+		BugReport: false,
+		Size:      nil,
+		Verbose:   false,
+	}
 }

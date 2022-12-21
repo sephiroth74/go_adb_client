@@ -3,6 +3,7 @@ package transport
 import (
 	"bufio"
 	"os"
+	"syscall"
 
 	"github.com/sephiroth74/go_adb_client/logging"
 	"github.com/sephiroth74/go_adb_client/types"
@@ -22,6 +23,10 @@ type Result struct {
 	ExitCode int
 	Stdout   []byte
 	Stderr   []byte
+}
+
+func (r Result) IsInterrupted() bool {
+	return r.ExitCode == int(syscall.SIGINT)
 }
 
 func (r Result) IsOk() bool {
@@ -140,7 +145,7 @@ func (p *ProcessBuilder) WithCommand(command string) *ProcessBuilder {
 	return p
 }
 
-func (p *ProcessBuilder) Invoke() (Result, error) {
+func (p *ProcessBuilder) Start(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exec.Cmd, context.CancelFunc, error) {
 	if p.verbose {
 		logging.Log.Debug().Msgf(repr.String(p.command))
 	}
@@ -156,38 +161,101 @@ func (p *ProcessBuilder) Invoke() (Result, error) {
 	finalArgs = append(finalArgs, p.command.args...)
 
 	var cmd *exec.Cmd = nil
+	var ctx context.Context
+	var cancel context.CancelFunc
 
 	if p.timeout > 0 {
 		logging.Log.Debug().Msgf("Executing (timeout=%s) `%s %s`", p.timeout.String(), adb, strings.Join(finalArgs, " "))
-		var ctx, cancel = context.WithTimeout(context.Background(), p.timeout)
-		defer cancel()
+		ctx, cancel = context.WithTimeout(context.Background(), p.timeout)
 		cmd = exec.CommandContext(ctx, *p.command.path, finalArgs...)
 	} else {
 		logging.Log.Debug().Msgf("Executing `%s %s`", adb, strings.Join(finalArgs, " "))
+		ctx, cancel = context.WithCancel(context.Background())
 		cmd = exec.Command(*p.command.path, finalArgs...)
 	}
 
-	var outb, errb bytes.Buffer
-	cmd.Stdout = &outb
-	cmd.Stderr = &errb
-
 	if p.stdout != nil {
 		cmd.Stdout = bufio.NewWriter(p.stdout)
+	} else if stdout != nil {
+		cmd.Stdout = stdout
 	}
 
-	err := cmd.Run()
+	if stderr != nil {
+		cmd.Stderr = stderr
+	}
+
+	if err := cmd.Start(); err != nil {
+		return cmd, cancel, err
+	}
+	return cmd, cancel, nil
+}
+
+func (p *ProcessBuilder) Invoke() (Result, error) {
+	var outBuf, errBuf bytes.Buffer
+	cmd, cancel, err := p.Start(&outBuf, &errBuf)
+	defer cancel()
+
+	if err != nil {
+		return Result{}, err
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return Result{}, err
+	}
+
 	exitCode := cmd.ProcessState.ExitCode()
 
 	var result = Result{
 		ExitCode: exitCode,
-		Stdout:   outb.Bytes(),
-		Stderr:   errb.Bytes(),
+		Stdout:   outBuf.Bytes(),
+		Stderr:   errBuf.Bytes(),
+	}
+	if err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+func (p *ProcessBuilder) InvokeWithCancel(closeChannel chan os.Signal) (Result, error) {
+	var outBuf, errBuf bytes.Buffer
+	cmd, cancel, err := p.Start(&outBuf, &errBuf)
+	defer cancel()
+
+	if err != nil {
+		return Result{}, err
+	}
+
+	go func() {
+		<-closeChannel
+		logging.Log.Warn().Msg("Kill Process!")
+		err := cmd.Process.Kill()
+		if err != nil {
+			return
+		}
+	}()
+
+	err = cmd.Wait()
+	status := cmd.ProcessState.Sys().(syscall.WaitStatus)
+	exitStatus := status
+	signaled := status.Signaled()
+	signal := status.Signal()
+	exitCode := cmd.ProcessState.ExitCode()
+
+	if signaled {
+		logging.Log.Warn().Msgf("Signal: %s", signal)
+		exitCode = int(exitStatus)
+	} else {
+		exitCode = int(exitStatus)
+	}
+
+	var result = Result{
+		ExitCode: exitCode,
+		Stdout:   outBuf.Bytes(),
+		Stderr:   errBuf.Bytes(),
 	}
 
 	if err != nil {
 		return result, err
 	}
-
 	return result, nil
-
 }

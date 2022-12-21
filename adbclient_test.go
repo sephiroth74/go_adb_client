@@ -4,13 +4,18 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sephiroth74/go_adb_client/scanner"
+	"github.com/sephiroth74/go_adb_client/shell"
+	"github.com/sephiroth74/go_adb_client/transport"
+	"golang.org/x/sys/unix"
 	"net"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"pkg.re/essentialkaos/ek.v12/path"
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -30,7 +35,7 @@ import (
 )
 
 var device_ip1 = net.IPv4(192, 168, 1, 105)
-var device_ip2 = net.IPv4(192, 168, 1, 56)
+var device_ip2 = net.IPv4(192, 168, 1, 67)
 var device_ip = device_ip2
 
 var local_apk = ""
@@ -44,12 +49,13 @@ func NewClient() *adbclient.Client {
 
 func AssertClientConnected(t *testing.T, client *adbclient.Client) {
 	result, err := client.Connect()
-	assert.Nil(t, err)
-	assert.True(t, result.IsOk(), result.Output())
+	assert.Nil(t, err, "Error connecting to %s", client.Address.String())
+	assert.True(t, result.IsOk(), "Error: %s", result.Error())
 }
 
 func TestIsConnected(t *testing.T) {
 	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
+	defer client.Disconnect()
 	result, err := client.Connect()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
@@ -57,6 +63,40 @@ func TestIsConnected(t *testing.T) {
 	conn, err := client.IsConnected()
 	assert.Nil(t, err)
 	assert.True(t, conn)
+}
+
+func TestRecordScreen(t *testing.T) {
+	var client = NewClient()
+	defer client.Disconnect()
+	AssertClientConnected(t, client)
+
+	var device = adbclient.NewDevice(client)
+
+	var result transport.Result
+	var err error
+
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	defer close(c)
+
+	result, err = device.Client.Shell.ScreenRecord(shell.ScreenRecordOptions{
+		Bitrate:   8000000,
+		Timelimit: 5,
+		Rotate:    false,
+		BugReport: false,
+		Size:      &types.Size{Width: 1920, Height: 1080},
+		Verbose:   false,
+	}, c, "/sdcard/Download/screenrecord.mp4")
+
+	if err != nil {
+		assert.Equal(t, int(unix.SIGINT), result.ExitCode)
+	}
+
+	if result.ExitCode != int(unix.SIGINT) {
+		assert.True(t, result.IsOk())
+		println(result.Output())
+		println(result.Error())
+	}
 }
 
 func TestConnect(t *testing.T) {
@@ -527,7 +567,7 @@ func TestListPackages(t *testing.T) {
 	pm := device.PackageManager()
 
 	// system apps
-	packages, err := pm.ListPackages(&packagemanager.PackageOptions{
+	packages, err := pm.ListPackages(packagemanager.PackageOptions{
 		ShowOnlyEnabed: true,
 		ShowOnlySystem: true,
 	})
@@ -551,7 +591,7 @@ func TestFindPackages(t *testing.T) {
 	device := adbclient.NewDevice(client)
 	pm := device.PackageManager()
 
-	packages, err := pm.ListPackagesWithFilter(&packagemanager.PackageOptions{ShowOnlySystem: true}, "com.google")
+	packages, err := pm.ListPackagesWithFilter(packagemanager.PackageOptions{ShowOnlySystem: true}, "com.google")
 	assert.Nil(t, err)
 	assert.GreaterOrEqual(t, len(packages), 1)
 
@@ -679,7 +719,7 @@ func TestPmUninstall(t *testing.T) {
 	device := adbclient.NewDevice(client)
 	packageName := "..."
 
-	packages, err := device.PackageManager().ListPackagesWithFilter(nil, packageName)
+	packages, err := device.PackageManager().ListPackagesWithFilter(packagemanager.PackageOptions{}, packageName)
 	assert.Nil(t, err)
 
 	installed := util.Any(packages, func(p packagemanager.Package) bool {

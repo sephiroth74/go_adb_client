@@ -322,3 +322,16 @@ func NewIntent() *Intent {
 }
 
 // endregion Intent
+
+// region Size
+
+type Size struct {
+	Width  uint
+	Height uint
+}
+
+func (s Size) String() string {
+	return fmt.Sprintf("%dx%d", s.Width, s.Height)
+}
+
+// endregion Size

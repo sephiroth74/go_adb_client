@@ -1,12 +1,11 @@
 package adbclient
 
 import (
-	"os"
-
 	"github.com/sephiroth74/go_adb_client/activitymanager"
 	"github.com/sephiroth74/go_adb_client/input"
 	"github.com/sephiroth74/go_adb_client/packagemanager"
 	"github.com/sephiroth74/go_adb_client/transport"
+	"os"
 )
 
 type Device struct {

@@ -69,7 +69,11 @@ func (c Connection) DisconnectAll() (transport.Result, error) {
 }
 
 func (c Connection) GetState(addr string) (transport.Result, error) {
-	return transport.NewProcessBuilder().WithPath(&c.ADBPath).WithSerialAddr(addr).WithCommand("get-state").Invoke()
+	return transport.NewProcessBuilder().
+		WithPath(&c.ADBPath).
+		WithSerialAddr(addr).
+		WithCommand("get-state").
+		Invoke()
 }
 
 func (c Connection) WaitForDevice(addr string) (transport.Result, error) {
