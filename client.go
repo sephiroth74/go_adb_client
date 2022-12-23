@@ -2,7 +2,7 @@ package adbclient
 
 import (
 	"fmt"
-	"github.com/sephiroth74/go_adb_client/util"
+	streams "github.com/sephiroth74/go_streams"
 	"net"
 	"time"
 
@@ -58,12 +58,12 @@ func WaitAndReturn(result *transport.Result, err error, timeout time.Duration) (
 	return *result, err
 }
 
-func (c Client) Connect() (transport.Result, error) {
+func (c Client) Connect(timeout time.Duration) (transport.Result, error) {
 	conn, err := c.IsConnected()
 	if err == nil && conn {
 		return transport.OkResult("Already Connected"), nil
 	}
-	result, err := c.Conn.Connect(c.Address.GetSerialAddress())
+	result, err := c.Conn.Connect(c.Address.GetSerialAddress(), timeout)
 
 	if err != nil {
 		return transport.ErrorResult(result.Output()), err
@@ -82,8 +82,8 @@ func (c Client) Connect() (transport.Result, error) {
 	}
 }
 
-func (c Client) Reconnect() (transport.Result, error) {
-	return c.Conn.Reconnect(c.Address.GetSerialAddress())
+func (c Client) Reconnect(timeout time.Duration) (transport.Result, error) {
+	return c.Conn.Reconnect(c.Address.GetSerialAddress(), timeout)
 }
 
 func (c Client) IsConnected() (bool, error) {
@@ -114,7 +114,7 @@ func (c Client) DisconnectAll() (transport.Result, error) {
 }
 
 func (c Client) WaitForDevice() (transport.Result, error) {
-	return c.Conn.WaitForDevice(c.Address.GetSerialAddress())
+	return c.Conn.WaitForDevice(c.Address.GetSerialAddress(), 0)
 }
 
 func (c Client) WaitForDeviceWithTimeout(timeout time.Duration) (transport.Result, error) {
@@ -227,7 +227,7 @@ func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
 	}
 
 	if len(options.Tags) > 0 {
-		tags, _ := util.Map(options.Tags, func(tag types.LogcatTag) (string, error) {
+		tags, _ := streams.Map(options.Tags, func(tag types.LogcatTag) (string, error) {
 			return tag.String(), nil
 		})
 		args = append(args, tags...)

@@ -3,6 +3,7 @@ package shell
 import (
 	"errors"
 	"fmt"
+	streams "github.com/sephiroth74/go_streams"
 	"os"
 	"regexp"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	"github.com/sephiroth74/go_adb_client/input"
 	"github.com/sephiroth74/go_adb_client/transport"
 	"github.com/sephiroth74/go_adb_client/types"
-	"github.com/sephiroth74/go_adb_client/util"
 	"github.com/sephiroth74/go_adb_client/util/constants"
 )
 
@@ -91,7 +91,7 @@ func (s Shell) GetProps() ([]types.Pair[string, string], error) {
 	}
 
 	if result.IsOk() {
-		mapped := util.MapNotNull(result.OutputLines(), func(s string) (types.Pair[string, string], error) {
+		mapped := streams.MapNotNull(result.OutputLines(), func(s string) (types.Pair[string, string], error) {
 			t, err := parsePropLine(s)
 			return t, err
 		})
@@ -200,6 +200,24 @@ func (s Shell) ScreenRecord(options ScreenRecordOptions, c chan os.Signal, filen
 
 	pb.WithArgs(args...)
 	return pb.InvokeWithCancel(c)
+}
+
+func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
+	result, err := s.NewProcess().WithArgs("ls -lHhap --color=none", dirname).Invoke()
+	var emptyList []types.DeviceFile
+	if err != nil {
+		return emptyList, err
+	}
+
+	if !result.IsOk() {
+		return emptyList, err
+	}
+
+	deviceFiles := streams.MapNotNull(result.OutputLines(), func(line string) (types.DeviceFile, error) {
+		return types.NewDeviceFile(line)
+	})
+
+	return deviceFiles, nil
 }
 
 //

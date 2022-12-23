@@ -6,6 +6,8 @@ import (
 	"github.com/sephiroth74/go_adb_client/scanner"
 	"github.com/sephiroth74/go_adb_client/shell"
 	"github.com/sephiroth74/go_adb_client/transport"
+	"github.com/sephiroth74/go_adb_client/workmanager"
+	streams "github.com/sephiroth74/go_streams"
 	"golang.org/x/sys/unix"
 	"net"
 	"os"
@@ -31,7 +33,6 @@ import (
 	"github.com/sephiroth74/go_adb_client/mdns"
 	"github.com/sephiroth74/go_adb_client/packagemanager"
 	"github.com/sephiroth74/go_adb_client/types"
-	"github.com/sephiroth74/go_adb_client/util"
 )
 
 var device_ip1 = net.IPv4(192, 168, 1, 105)
@@ -48,7 +49,7 @@ func NewClient() *adbclient.Client {
 }
 
 func AssertClientConnected(t *testing.T, client *adbclient.Client) {
-	result, err := client.Connect()
+	result, err := client.Connect(5 * time.Second)
 	assert.Nil(t, err, "Error connecting to %s", client.Address.String())
 	assert.True(t, result.IsOk(), "Error: %s", result.Error())
 }
@@ -56,13 +57,66 @@ func AssertClientConnected(t *testing.T, client *adbclient.Client) {
 func TestIsConnected(t *testing.T) {
 	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
 	defer client.Disconnect()
-	result, err := client.Connect()
+	result, err := client.Connect(5 * time.Second)
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
 	conn, err := client.IsConnected()
 	assert.Nil(t, err)
 	assert.True(t, conn)
+}
+
+type Work1 struct{}
+
+func (w1 Work1) Execute(inputParams workmanager.Data) (workmanager.Data, error) {
+	println("Executing Work1...")
+	time.Sleep(2 * time.Second)
+	return workmanager.Data{
+		"one": "true",
+	}, nil
+}
+
+type Work2 struct{}
+
+func (w2 Work2) Execute(inputParams workmanager.Data) (workmanager.Data, error) {
+	println("Executing Work2...")
+	time.Sleep(2 * time.Second)
+
+	return workmanager.Data{
+		"two": fmt.Sprintf("%s-and-one", inputParams["one"]),
+	}, nil
+}
+
+func TestWorkManager(t *testing.T) {
+	w := workmanager.WorkManager{}
+	cData := w.Execute(Work1{}, Work2{})
+
+	data := <-cData
+
+	if data.Second != nil {
+		println("errors", data.Second.Error())
+	} else {
+		for k, v := range data.First {
+			fmt.Printf("%s = %s\n", k, v)
+		}
+	}
+
+}
+
+func TestDirWalk(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	var device = adbclient.NewDevice(client)
+	device.Client.Root()
+
+	result, err := device.Client.Shell.ListDir("/data")
+	assert.Nil(t, err)
+
+	for _, line := range result {
+		logging.Log.Info().Msg(line.String())
+	}
+
 }
 
 func TestRecordScreen(t *testing.T) {
@@ -102,7 +156,7 @@ func TestRecordScreen(t *testing.T) {
 func TestConnect(t *testing.T) {
 	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
 
-	result, err := client.Connect()
+	result, err := client.Connect(5 * time.Second)
 	logging.Log.Debug().Msgf("result=%s", result.ToString())
 	assert.Nil(t, err)
 	assert.Equal(t, true, result.IsOk())
@@ -127,11 +181,11 @@ func TestConnect(t *testing.T) {
 func TestWaitForDevice(t *testing.T) {
 	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
 
-	result, err := client.Connect()
+	result, err := client.Connect(5 * time.Second)
 	assert.Nil(t, err)
 	assert.Equal(t, true, result.IsOk())
 
-	result, err = client.WaitForDevice()
+	result, err = client.WaitForDeviceWithTimeout(connection.WaitForDeviceTimeout)
 	assert.Nil(t, err)
 	println(result.ToString())
 	assert.Equal(t, true, result.IsOk())
@@ -150,12 +204,10 @@ func TestWaitForDevice(t *testing.T) {
 }
 
 func TestRoot(t *testing.T) {
-	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
-	result, err := client.Connect()
-	assert.Nil(t, err)
-	assert.True(t, result.IsOk())
+	client := NewClient()
+	AssertClientConnected(t, client)
 
-	result, err = client.Root()
+	result, err := client.Root()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
@@ -173,11 +225,8 @@ func TestRoot(t *testing.T) {
 }
 
 func TestListDevices(t *testing.T) {
-	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
-	result, err := client.Connect()
-	assert.Nil(t, err)
-	assert.True(t, result.IsOk())
-
+	var client = NewClient()
+	AssertClientConnected(t, client)
 	list, err := client.ListDevices()
 
 	if err == nil {
@@ -188,16 +237,14 @@ func TestListDevices(t *testing.T) {
 }
 
 func TestReboot(t *testing.T) {
-	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
-	result, err := client.Connect()
-	assert.Nil(t, err)
-	assert.True(t, result.IsOk())
+	var client = NewClient()
+	AssertClientConnected(t, client)
 
 	conn, err := client.IsConnected()
 	assert.Nil(t, err)
 	assert.True(t, conn)
 
-	result, err = client.Reboot()
+	result, err := client.Reboot()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
@@ -211,16 +258,14 @@ func TestReboot(t *testing.T) {
 }
 
 func TestRemount(t *testing.T) {
-	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
-	result, err := client.Connect()
-	assert.Nil(t, err)
-	assert.True(t, result.IsOk())
+	var client = NewClient()
+	AssertClientConnected(t, client)
 
 	conn, err := client.IsConnected()
 	assert.Nil(t, err)
 	assert.True(t, conn)
 
-	result, err = client.Root()
+	result, err := client.Root()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
@@ -266,7 +311,7 @@ func TestMdns(t *testing.T) {
 	assert.True(t, len(devices) > 0)
 
 	client2 := adbclient.NewClient(devices[1])
-	result, err = client2.Connect()
+	result, err = client2.Connect(5 * time.Second)
 	assert.Nil(t, err)
 	logging.Log.Debug().Msg(result.String())
 
@@ -341,7 +386,7 @@ func TestRx(t *testing.T) {
 	})
 
 	client.Disconnect()
-	client.Connect()
+	client.Connect(5 * time.Second)
 	client.IsConnected()
 	// client.Disconnect()
 
@@ -722,7 +767,7 @@ func TestPmUninstall(t *testing.T) {
 	packages, err := device.PackageManager().ListPackagesWithFilter(packagemanager.PackageOptions{}, packageName)
 	assert.Nil(t, err)
 
-	installed := util.Any(packages, func(p packagemanager.Package) bool {
+	installed := streams.Any(packages, func(p packagemanager.Package) bool {
 		logging.Log.Debug().Msgf("Checking package %s", p.Name)
 		return p.Name == packageName
 	})

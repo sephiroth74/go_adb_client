@@ -14,8 +14,8 @@ import (
 )
 
 var timeout = time.Duration(5) * time.Second
-var rebootTimeout = time.Duration(30) * time.Second
-var waitForDeviceTimeout = time.Duration(1) * time.Minute
+var RebootTimeout = time.Duration(30) * time.Second
+var WaitForDeviceTimeout = time.Duration(1) * time.Minute
 
 type Connection struct {
 	ADBPath string
@@ -46,18 +46,23 @@ func (c Connection) Version() (string, error) {
 	return "", nil
 }
 
-func (c Connection) Connect(addr string) (transport.Result, error) {
+func (c Connection) Connect(addr string, timeout time.Duration) (transport.Result, error) {
 	p := transport.NewProcessBuilder().
 		WithPath(&c.ADBPath).
 		WithCommand("connect").
 		WithArgs(addr).
-		WithTimeout(waitForDeviceTimeout).
+		WithTimeout(timeout).
 		Verbose(false)
 	return p.Invoke()
 }
 
-func (c Connection) Reconnect(addr string) (transport.Result, error) {
-	return transport.NewProcessBuilder().WithPath(&c.ADBPath).WithCommand("reconnect").WithArgs(addr).WithTimeout(waitForDeviceTimeout).Invoke()
+func (c Connection) Reconnect(addr string, timeout time.Duration) (transport.Result, error) {
+	return transport.NewProcessBuilder().
+		WithPath(&c.ADBPath).
+		WithCommand("reconnect").
+		WithArgs(addr).
+		WithTimeout(timeout).
+		Invoke()
 }
 
 func (c Connection) Disconnect(addr string) (transport.Result, error) {
@@ -76,8 +81,8 @@ func (c Connection) GetState(addr string) (transport.Result, error) {
 		Invoke()
 }
 
-func (c Connection) WaitForDevice(addr string) (transport.Result, error) {
-	return c.WaitForDeviceWithTimeout(addr, waitForDeviceTimeout)
+func (c Connection) WaitForDevice(addr string, timeout time.Duration) (transport.Result, error) {
+	return c.WaitForDeviceWithTimeout(addr, timeout)
 }
 
 func (c Connection) WaitForDeviceWithTimeout(addr string, timeout time.Duration) (transport.Result, error) {

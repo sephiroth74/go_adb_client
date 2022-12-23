@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/alecthomas/repr"
-	"github.com/sephiroth74/go_adb_client/util"
+	"github.com/sephiroth74/go_streams"
 )
 
 // region Pair
@@ -51,7 +51,7 @@ func (c ClientAddr) GetSerialAddress() string {
 
 func NewClientAddress(addr *string) (*ClientAddr, error) {
 	ip_port := strings.Split(*addr, ":")
-	ip, err := util.Map(strings.Split(ip_port[0], "."), func(s string) (byte, error) {
+	ip, err := streams.Map(strings.Split(ip_port[0], "."), func(s string) (byte, error) {
 		v, e := strconv.Atoi(s)
 		if e != nil {
 			return 0, e
@@ -170,6 +170,7 @@ type Extras struct {
 	Eia                     map[string][]int
 	Ela                     map[string][]int64
 	Efa                     map[string][]float32
+	Esa                     map[string][]string
 	GrantReadUriPermission  bool
 	GrantWriteUriPermission bool
 	ExcludeStoppedPackages  bool
@@ -280,6 +281,12 @@ func (e Extras) String() string {
 		}
 	}
 
+	if e.Esa != nil && len(e.Esa) > 0 {
+		for k, v := range e.Esa {
+			s = append(s, fmt.Sprintf("--esa %s %s", k, strings.Trim(strings.Replace(fmt.Sprint(v), " ", ",", -1), "[]")))
+		}
+	}
+
 	if e.GrantReadUriPermission {
 		s = append(s, "--grant-read-uri-permission")
 	}
@@ -317,6 +324,7 @@ func NewIntent() *Intent {
 			Eia: make(map[string][]int),
 			Ela: make(map[string][]int64),
 			Efa: make(map[string][]float32),
+			Esa: make(map[string][]string),
 		},
 	}
 }

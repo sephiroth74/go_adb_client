@@ -5,11 +5,12 @@ go 1.19
 require (
 	github.com/alecthomas/repr v0.1.1
 	github.com/magiconair/properties v1.8.7
-	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/pterm/pterm v0.12.50
 	github.com/reactivex/rxgo/v2 v2.5.0
 	github.com/rs/zerolog v1.28.0
+	github.com/sephiroth74/go_streams v0.0.2
 	github.com/stretchr/testify v1.8.1
+	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
 	pkg.re/essentialkaos/ek.v12 v12.41.0+incompatible
 )
 
@@ -31,7 +32,6 @@ require (
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/teivah/onecontext v0.0.0-20200513185103-40f981bfd775 // indirect
 	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
