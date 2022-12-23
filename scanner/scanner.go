@@ -2,7 +2,6 @@ package scanner
 
 import (
 	"fmt"
-	"github.com/pterm/pterm"
 	"net"
 	"sync"
 	"time"
@@ -36,7 +35,6 @@ func (s *Scanner) Scan() {
 func worker(index int, host string, ch chan *string, wg *sync.WaitGroup) {
 	// Decreasing internal counter for wait-group as soon as goroutine finishes
 	defer wg.Done()
-	pterm.Debug.Printf("[%d] Trying to connect to %s", index, host)
 	conn, err := net.DialTimeout("tcp", host, time.Duration(1)*time.Second)
 	if err != nil {
 		ch <- nil
