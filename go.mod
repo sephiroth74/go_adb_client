@@ -8,7 +8,7 @@ require (
 	github.com/pterm/pterm v0.12.50
 	github.com/reactivex/rxgo/v2 v2.5.0
 	github.com/rs/zerolog v1.28.0
-	github.com/sephiroth74/go_streams v0.0.2
+	github.com/sephiroth74/go_streams v1.0.0
 	github.com/stretchr/testify v1.8.1
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
 	pkg.re/essentialkaos/ek.v12 v12.41.0+incompatible

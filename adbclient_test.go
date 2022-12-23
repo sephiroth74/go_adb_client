@@ -6,7 +6,6 @@ import (
 	"github.com/sephiroth74/go_adb_client/scanner"
 	"github.com/sephiroth74/go_adb_client/shell"
 	"github.com/sephiroth74/go_adb_client/transport"
-	"github.com/sephiroth74/go_adb_client/workmanager"
 	streams "github.com/sephiroth74/go_streams"
 	"golang.org/x/sys/unix"
 	"net"
@@ -64,43 +63,6 @@ func TestIsConnected(t *testing.T) {
 	conn, err := client.IsConnected()
 	assert.Nil(t, err)
 	assert.True(t, conn)
-}
-
-type Work1 struct{}
-
-func (w1 Work1) Execute(inputParams workmanager.Data) (workmanager.Data, error) {
-	println("Executing Work1...")
-	time.Sleep(2 * time.Second)
-	return workmanager.Data{
-		"one": "true",
-	}, nil
-}
-
-type Work2 struct{}
-
-func (w2 Work2) Execute(inputParams workmanager.Data) (workmanager.Data, error) {
-	println("Executing Work2...")
-	time.Sleep(2 * time.Second)
-
-	return workmanager.Data{
-		"two": fmt.Sprintf("%s-and-one", inputParams["one"]),
-	}, nil
-}
-
-func TestWorkManager(t *testing.T) {
-	w := workmanager.WorkManager{}
-	cData := w.Execute(Work1{}, Work2{})
-
-	data := <-cData
-
-	if data.Second != nil {
-		println("errors", data.Second.Error())
-	} else {
-		for k, v := range data.First {
-			fmt.Printf("%s = %s\n", k, v)
-		}
-	}
-
 }
 
 func TestDirWalk(t *testing.T) {

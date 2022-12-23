@@ -257,7 +257,7 @@ func (p PackageManager) DumpPackage(packageName string) (*SimplePackageReader, e
 
 // Clear executes a "pm clear packageName" on the connected device
 func (p PackageManager) Clear(packageName string) (transport.Result, error) {
-	return p.Shell.Executef("pm clear", 0, packageName)
+	return p.Shell.Executef("pm clear %s", 0, packageName)
 }
 
 func (p PackageManager) GrantPermission(packageName string, permission string) (transport.Result, error) {
