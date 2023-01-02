@@ -31,11 +31,11 @@ func NewShell(adb *string, serial types.Serial, verbose bool) *Shell {
 }
 
 func (s Shell) Execute(command string, timeout time.Duration, args ...string) (transport.Result, error) {
-	return s.NewProcess().WithTimeout(timeout).WithArgs(command).WithArgs(args...).Verbose(false).Invoke()
+	return s.NewProcess().WithTimeout(timeout).WithArgs(command).WithArgs(args...).Invoke()
 }
 
 func (s Shell) Executef(format string, timeout time.Duration, v ...any) (transport.Result, error) {
-	return s.NewProcess().WithTimeout(timeout).WithArgs(fmt.Sprintf(format, v...)).Verbose(false).Invoke()
+	return s.NewProcess().WithTimeout(timeout).WithArgs(fmt.Sprintf(format, v...)).Invoke()
 }
 
 func (s Shell) NewProcess() *transport.ProcessBuilder {

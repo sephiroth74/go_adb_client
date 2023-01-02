@@ -51,8 +51,7 @@ func (c Connection) Connect(addr string, timeout time.Duration) (transport.Resul
 		WithPath(&c.ADBPath).
 		WithCommand("connect").
 		WithArgs(addr).
-		WithTimeout(timeout).
-		Verbose(false)
+		WithTimeout(timeout)
 	return p.Invoke()
 }
 

@@ -35,7 +35,7 @@ import (
 )
 
 var device_ip1 = net.IPv4(192, 168, 1, 105)
-var device_ip2 = net.IPv4(192, 168, 1, 67)
+var device_ip2 = net.IPv4(192, 168, 1, 3)
 var device_ip = device_ip2
 
 var local_apk = ""
@@ -54,7 +54,7 @@ func AssertClientConnected(t *testing.T, client *adbclient.Client) {
 }
 
 func TestIsConnected(t *testing.T) {
-	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555}, true)
+	var client = NewClient()
 	defer client.Disconnect()
 	result, err := client.Connect(5 * time.Second)
 	assert.Nil(t, err)
@@ -493,7 +493,9 @@ func TestWriteScreenCap(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	var target_file = "./exports/screencap.png"
+	target_file, err := filepath.Abs("./exports/screencap.png")
+	assert.Nil(t, err)
+
 	var target_dir = filepath.Dir(target_file)
 
 	logging.Log.Info().Msgf("target file: %s", target_file)
@@ -502,14 +504,12 @@ func TestWriteScreenCap(t *testing.T) {
 	os.RemoveAll(target_dir)
 	os.MkdirAll(target_dir, 0755)
 
-	_, err := os.Stat(target_dir)
+	_, err = os.Stat(target_dir)
 	assert.Nil(t, err)
 
 	f, err := os.Create(target_file)
 	assert.Nil(t, err)
 	os.Chmod(target_file, 0755)
-
-	logging.Log.Info().Msgf("f: %v", f)
 
 	device := adbclient.NewDevice(client)
 	result, err := device.WriteScreenCap(f)
@@ -521,7 +521,7 @@ func TestWriteScreenCap(t *testing.T) {
 	}
 
 	assert.True(t, result.IsOk())
-	if _, err := os.Stat("./exports/screencap.png"); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(target_file); errors.Is(err, os.ErrNotExist) {
 		assert.Fail(t, "Screencap not exported")
 	}
 
