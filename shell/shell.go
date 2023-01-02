@@ -3,6 +3,7 @@ package shell
 import (
 	"errors"
 	"fmt"
+	"github.com/magiconair/properties"
 	streams "github.com/sephiroth74/go_streams"
 	"os"
 	"regexp"
@@ -220,6 +221,64 @@ func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
 	})
 
 	return deviceFiles, nil
+}
+
+func (s Shell) ListSettings(namespace types.SettingsNamespace) (*properties.Properties, error) {
+	result, err := s.NewProcess().WithArgs(fmt.Sprintf("settings list %s", namespace)).Invoke()
+	if err != nil {
+		return nil, err
+	}
+	p, err := properties.LoadString(result.Output())
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func (s Shell) GetSetting(key string, namespace types.SettingsNamespace) (*string, error) {
+	result, err := s.NewProcess().WithArgs(fmt.Sprintf("settings get %s %s", namespace, key)).Invoke()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !result.IsOk() {
+		return nil, result.NewError()
+	}
+
+	value := result.Output()
+	if strings.EqualFold("null", value) {
+		return nil, nil
+	}
+	return &value, nil
+}
+
+func (s Shell) PutSetting(key string, value string, namespace types.SettingsNamespace) error {
+	result, err := s.NewProcess().WithArgs(fmt.Sprintf("settings put %s %s %s", namespace, key, value)).Invoke()
+
+	if err != nil {
+		return err
+	}
+
+	if !result.IsOk() {
+		return result.NewError()
+	}
+
+	return nil
+}
+
+func (s Shell) DeleteSetting(key string, namespace types.SettingsNamespace) error {
+	result, err := s.NewProcess().WithArgs(fmt.Sprintf("settings delete %s %s", namespace, key)).Invoke()
+
+	if err != nil {
+		return err
+	}
+
+	if !result.IsOk() {
+		return result.NewError()
+	}
+
+	return nil
 }
 
 //

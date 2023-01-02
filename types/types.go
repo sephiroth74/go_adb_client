@@ -343,3 +343,15 @@ func (s Size) String() string {
 }
 
 // endregion Size
+
+// region SettingsNamespace
+
+type SettingsNamespace string
+
+const (
+	SettingsGlobal SettingsNamespace = "global"
+	SettingsSystem SettingsNamespace = "system"
+	SettingsSecure SettingsNamespace = "secure"
+)
+
+// endregion SettingsNamespace

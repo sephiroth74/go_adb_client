@@ -853,6 +853,92 @@ func TestClearPackage(t *testing.T) {
 	assert.True(t, result.IsOk())
 }
 
+func TestListSettings(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	_, err := client.Root()
+	assert.Nil(t, err)
+
+	settings, err := client.Shell.ListSettings(types.SettingsGlobal)
+	assert.Nil(t, err)
+	assert.True(t, settings.Len() > 0)
+	logging.Log.Debug().Msgf("loaded %d global settings", settings.Len())
+
+	settings, err = client.Shell.ListSettings(types.SettingsSystem)
+	assert.Nil(t, err)
+	assert.True(t, settings.Len() > 0)
+	logging.Log.Debug().Msgf("loaded %d system settings", settings.Len())
+
+	settings, err = client.Shell.ListSettings(types.SettingsSecure)
+	assert.Nil(t, err)
+	assert.True(t, settings.Len() > 0)
+	logging.Log.Debug().Msgf("loaded %d secure settings", settings.Len())
+}
+
+func TestGetSettings(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	_, err := client.Root()
+	assert.Nil(t, err)
+
+	settings, err := client.Shell.GetSetting("system_locales", types.SettingsSystem)
+	assert.Nil(t, err)
+	assert.NotNil(t, settings)
+	assert.True(t, len(*settings) > 0)
+	logging.Log.Debug().Msgf("system_locales = %s", *settings)
+
+	settings, err = client.Shell.GetSetting("transition_animation_scale", types.SettingsGlobal)
+	assert.Nil(t, err)
+	assert.NotNil(t, settings)
+	assert.True(t, len(*settings) > 0)
+	logging.Log.Debug().Msgf("transition_animation_scale = %s", *settings)
+}
+
+func TestPutSettings(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	_, err := client.Root()
+	assert.Nil(t, err)
+
+	err = client.Shell.PutSetting("transition_animation_scale", "1.1", types.SettingsGlobal)
+	assert.Nil(t, err)
+
+	settings, err := client.Shell.GetSetting("transition_animation_scale", types.SettingsGlobal)
+	assert.Nil(t, err)
+	assert.NotNil(t, settings)
+	assert.Equal(t, "1.1", *settings)
+
+	err = client.Shell.PutSetting("transition_animation_scale", "1.0", types.SettingsGlobal)
+	assert.Nil(t, err)
+
+	settings, err = client.Shell.GetSetting("transition_animation_scale", types.SettingsGlobal)
+	assert.Nil(t, err)
+	assert.NotNil(t, settings)
+	assert.Equal(t, "1.0", *settings)
+}
+
+func TestDeleteSettings(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	_, err := client.Root()
+	assert.Nil(t, err)
+
+	err = client.Shell.PutSetting("a_custom_setting", "1", types.SettingsGlobal)
+	assert.Nil(t, err)
+
+	settings, err := client.Shell.GetSetting("a_custom_setting", types.SettingsGlobal)
+	assert.Nil(t, err)
+	assert.NotNil(t, settings)
+	assert.Equal(t, "1", *settings)
+
+	err = client.Shell.DeleteSetting("a_custom_setting", types.SettingsGlobal)
+	assert.Nil(t, err)
+
+	settings, err = client.Shell.GetSetting("a_custom_setting", types.SettingsGlobal)
+	assert.Nil(t, err)
+	assert.Nil(t, settings)
+}
+
 func TestScan(t *testing.T) {
 	sc := scanner.NewScanner()
 
