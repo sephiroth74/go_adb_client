@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/alecthomas/repr"
-	"github.com/sephiroth74/go_streams"
 )
 
 // region Pair
@@ -51,18 +50,7 @@ func (c ClientAddr) GetSerialAddress() string {
 
 func NewClientAddress(addr *string) (*ClientAddr, error) {
 	ip_port := strings.Split(*addr, ":")
-	ip, err := streams.Map(strings.Split(ip_port[0], "."), func(s string) (byte, error) {
-		v, e := strconv.Atoi(s)
-		if e != nil {
-			return 0, e
-		}
-		return byte(v), nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
+	ip := net.ParseIP(ip_port[0])
 	port, err := strconv.Atoi(ip_port[1])
 
 	if err != nil {
@@ -70,7 +58,7 @@ func NewClientAddress(addr *string) (*ClientAddr, error) {
 	}
 
 	address := new(ClientAddr)
-	address.IP = net.IPv4(ip[0], ip[1], ip[2], ip[3])
+	address.IP = ip
 	address.Port = port
 	return address, nil
 }

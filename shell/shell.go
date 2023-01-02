@@ -1,9 +1,9 @@
 package shell
 
 import (
-	"errors"
 	"fmt"
 	"github.com/magiconair/properties"
+	"github.com/sephiroth74/go_adb_client/connection"
 	streams "github.com/sephiroth74/go_streams"
 	"os"
 	"regexp"
@@ -17,16 +17,14 @@ import (
 )
 
 type Shell struct {
+	Conn    *connection.Connection
 	Address types.Serial
-	Adb     *string
-	Verbose bool
 }
 
-func NewShell(adb *string, serial types.Serial, verbose bool) *Shell {
+func NewShell(conn *connection.Connection, serial types.Serial) *Shell {
 	var s = Shell{
 		Address: serial,
-		Adb:     adb,
-		Verbose: verbose,
+		Conn:    conn,
 	}
 	return &s
 }
@@ -40,7 +38,7 @@ func (s Shell) Executef(format string, timeout time.Duration, v ...any) (transpo
 }
 
 func (s Shell) NewProcess() *transport.ProcessBuilder {
-	return transport.NewProcessBuilder().Verbose(s.Verbose).WithSerial(&s.Address).WithPath(s.Adb).WithCommand("shell")
+	return s.Conn.NewProcessBuilder().WithSerial(&s.Address).WithCommand("shell")
 }
 
 func (s Shell) Cat(filename string) (transport.Result, error) {
@@ -87,20 +85,29 @@ func (s Shell) GetPropType(key string) (*string, bool) {
 	}
 }
 
-func (s Shell) GetProps() ([]types.Pair[string, string], error) {
+func (s Shell) GetProps() (*properties.Properties, error) {
 	result, err := s.Execute("getprop", 0)
 	if err != nil {
 		return nil, err
 	}
 
 	if result.IsOk() {
-		mapped := streams.MapNotNull(result.OutputLines(), func(s string) (types.Pair[string, string], error) {
-			t, err := parsePropLine(s)
-			return t, err
-		})
-		return mapped, nil
+		props := properties.NewProperties()
+		pairs, err := parsePropLines(result.Output())
+		for _, t := range pairs {
+			if err != nil {
+				println("err is not null", err.Error())
+				return nil, err
+			}
+
+			if _, _, err := props.Set(t.First, t.Second); err != nil {
+				println("failed to set property")
+				return nil, err
+			}
+		}
+		return props, nil
 	} else {
-		return []types.Pair[string, string]{}, nil
+		return nil, result.NewError()
 	}
 }
 
@@ -303,17 +310,25 @@ func parseEvents(text string) []types.Pair[string, string] {
 	return arr
 }
 
-func parsePropLine(line string) (types.Pair[string, string], error) {
-	f := regexp.MustCompile(`^\[(.*)\]\s*:\s*\[(.*)\]\s*$`)
-	m := f.FindStringSubmatch(line)
-	if len(m) == 3 {
+func parsePropLines(text string) ([]types.Pair[string, string], error) {
+	f := regexp.MustCompile(`(?m)^\[(.*)\]\s*:\s*\[([^\]]*)\]$`)
+	m := f.FindAllStringSubmatch(text, -1)
+	return streams.Map(m, func(match []string) types.Pair[string, string] {
 		return types.Pair[string, string]{
-			First:  m[1],
-			Second: m[2],
-		}, nil
-	} else {
-		return types.Pair[string, string]{}, errors.New("parse exception. cannot find submatches on the fiven line")
-	}
+			First:  match[1],
+			Second: match[2],
+		}
+	}), nil
+
+	//m := f.FindStringSubmatch(line)
+	//if len(m) == 3 {
+	//	return types.Pair[string, string]{
+	//		First:  m[1],
+	//		Second: m[2],
+	//	}, nil
+	//} else {
+	//	return types.Pair[string, string]{}, errors.New("parse exception. cannot find submatches on the fiven line")
+	//}
 }
 
 func testFile(shell Shell, filename string, mode string) bool {

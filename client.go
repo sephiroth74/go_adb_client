@@ -25,14 +25,14 @@ type Client struct {
 }
 
 func NewClient(device types.Serial, verbose bool) *Client {
-	var conn = connection.NewConnection()
+	var conn = connection.NewConnection(verbose)
 	client := new(Client)
 	client.Verbose = verbose
 	client.Conn = conn
-	client.Mdns = mdns.NewMdns(client.Conn, client.Verbose)
+	client.Mdns = mdns.NewMdns(client.Conn)
 	client.Address = device
 	client.Channel = make(chan rxgo.Item)
-	client.Shell = shell.NewShell(&conn.ADBPath, device, client.Verbose)
+	client.Shell = shell.NewShell(client.Conn, device)
 	return client
 }
 
@@ -41,7 +41,7 @@ func NullClient(verbose bool) *Client {
 }
 
 func (c Client) NewProcess() *transport.ProcessBuilder {
-	return transport.NewProcessBuilder().WithSerial(&c.Address).WithPath(&c.Conn.ADBPath).Verbose(c.Verbose)
+	return c.Conn.NewProcessBuilder().WithSerial(&c.Address)
 }
 
 func (c Client) DeferredDispatch(eventType events.EventType) {
@@ -205,7 +205,7 @@ func (c Client) Uninstall(packageName string) (transport.Result, error) {
 }
 
 func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
-	args := []string{}
+	var args []string
 
 	if options.Expr != "" {
 		args = append(args, "-e", options.Expr)
@@ -229,8 +229,8 @@ func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
 	}
 
 	if len(options.Tags) > 0 {
-		tags, _ := streams.Map(options.Tags, func(tag types.LogcatTag) (string, error) {
-			return tag.String(), nil
+		tags := streams.Map(options.Tags, func(tag types.LogcatTag) string {
+			return tag.String()
 		})
 		args = append(args, tags...)
 		args = append(args, "*:S")

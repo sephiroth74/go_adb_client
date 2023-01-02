@@ -247,7 +247,7 @@ func TestRemount(t *testing.T) {
 }
 
 func TestGetVersion(t *testing.T) {
-	conn := connection.NewConnection()
+	conn := connection.NewConnection(true)
 	result, err := conn.Version()
 	assert.Nil(t, err)
 	assert.NotEmpty(t, result)
@@ -255,7 +255,7 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestMdns(t *testing.T) {
-	var mdns = mdns.NewMdns(connection.NewConnection(), true)
+	var mdns = mdns.NewMdns(connection.NewConnection(true))
 	result, err := mdns.Check()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
@@ -424,11 +424,13 @@ func TestShellGetProps(t *testing.T) {
 
 	shell := client.Shell
 	props, err := shell.GetProps()
+	println(props)
 	assert.Nil(t, err)
-	assert.True(t, len(props) > 0)
+	assert.True(t, len(props.Keys()) > 0)
 
-	for _, v := range props {
-		logging.Log.Debug().Msgf("%s=%s", v.First, v.Second)
+	for _, v := range props.Keys() {
+		value := props.GetString(v, "")
+		logging.Log.Debug().Msgf("%s=%s", v, value)
 	}
 }
 
@@ -439,13 +441,13 @@ func TestShellGetPropsType(t *testing.T) {
 	shell := client.Shell
 	props, err := shell.GetProps()
 	assert.Nil(t, err)
-	assert.True(t, len(props) > 0)
+	assert.True(t, len(props.Keys()) > 0)
 
-	for _, v := range props {
-		pt, ok := shell.GetPropType(v.First)
-		assert.Truef(t, ok, "Error getting type of key %s", v.First)
+	for _, v := range props.Keys() {
+		pt, ok := shell.GetPropType(v)
+		assert.Truef(t, ok, "Error getting type of key %s", v)
 		if ok {
-			logging.Log.Debug().Msgf("%s=%s", v.First, *pt)
+			logging.Log.Debug().Msgf("%s=%s", v, *pt)
 		}
 	}
 }

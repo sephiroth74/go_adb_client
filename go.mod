@@ -7,7 +7,7 @@ require (
 	github.com/magiconair/properties v1.8.7
 	github.com/reactivex/rxgo/v2 v2.5.0
 	github.com/rs/zerolog v1.28.0
-	github.com/sephiroth74/go_streams v1.0.1
+	github.com/sephiroth74/go_streams v1.0.4
 	github.com/stretchr/testify v1.8.1
 	golang.org/x/sys v0.3.0
 	pkg.re/essentialkaos/ek.v12 v12.41.0+incompatible

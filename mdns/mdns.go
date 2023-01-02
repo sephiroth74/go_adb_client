@@ -10,13 +10,11 @@ import (
 )
 
 type Mdns struct {
-	Conn    *connection.Connection
-	Verbose bool
+	Conn *connection.Connection
 }
 
 func (m Mdns) Check() (transport.Result, error) {
-	return transport.NewProcessBuilder().WithPath(&m.Conn.ADBPath).
-		Verbose(m.Verbose).
+	return m.Conn.NewProcessBuilder().
 		WithCommand("mdns").
 		WithArgs("check").
 		Invoke()
@@ -24,8 +22,7 @@ func (m Mdns) Check() (transport.Result, error) {
 
 func (m Mdns) Services() ([]types.MdnsDevice, error) {
 	// adb-JA37001FF3	_adb._tcp.	192.168.1.105:5555
-	result, err := transport.NewProcessBuilder().WithPath(&m.Conn.ADBPath).
-		Verbose(m.Verbose).
+	result, err := m.Conn.NewProcessBuilder().
 		WithCommand("mdns").
 		WithArgs("services").
 		Invoke()
@@ -53,9 +50,8 @@ func (m Mdns) Services() ([]types.MdnsDevice, error) {
 	return devices, err
 }
 
-func NewMdns(conn *connection.Connection, verbose bool) *Mdns {
+func NewMdns(conn *connection.Connection) *Mdns {
 	mdns := new(Mdns)
 	mdns.Conn = conn
-	mdns.Verbose = verbose
 	return mdns
 }
