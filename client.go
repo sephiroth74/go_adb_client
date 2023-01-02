@@ -21,25 +21,27 @@ type Client struct {
 	Channel chan rxgo.Item
 	Address types.Serial
 	Shell   *shell.Shell
+	Verbose bool
 }
 
-func NewClient(device types.Serial) *Client {
+func NewClient(device types.Serial, verbose bool) *Client {
 	var conn = connection.NewConnection()
 	client := new(Client)
+	client.Verbose = verbose
 	client.Conn = conn
-	client.Mdns = mdns.NewMdns(client.Conn)
+	client.Mdns = mdns.NewMdns(client.Conn, client.Verbose)
 	client.Address = device
 	client.Channel = make(chan rxgo.Item)
-	client.Shell = shell.NewShell(&conn.ADBPath, device)
+	client.Shell = shell.NewShell(&conn.ADBPath, device, client.Verbose)
 	return client
 }
 
-func NullClient() *Client {
-	return NewClient(types.ClientAddr{IP: net.IPv4(127, 0, 0, 1), Port: 5555})
+func NullClient(verbose bool) *Client {
+	return NewClient(types.ClientAddr{IP: net.IPv4(127, 0, 0, 1), Port: 5555}, verbose)
 }
 
 func (c Client) NewProcess() *transport.ProcessBuilder {
-	return transport.NewProcessBuilder().WithSerial(&c.Address).WithPath(&c.Conn.ADBPath)
+	return transport.NewProcessBuilder().WithSerial(&c.Address).WithPath(&c.Conn.ADBPath).Verbose(c.Verbose)
 }
 
 func (c Client) DeferredDispatch(eventType events.EventType) {

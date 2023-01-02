@@ -38,8 +38,6 @@ github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/f
 github.com/rs/xid v1.4.0/go.mod h1:trrq9SKmegXys3aeAKXMUTdJsYXVwGY3RLcfgqegfbg=
 github.com/rs/zerolog v1.28.0 h1:MirSo27VyNi7RJYP3078AA1+Cyzd2GB66qy3aUHvsWY=
 github.com/rs/zerolog v1.28.0/go.mod h1:NILgTygv/Uej1ra5XxGf82ZFSLk58MFGAUS2o6usyD0=
-github.com/sephiroth74/go_streams v1.0.0 h1:F8uBZB84FzutOb4vN5wNjAefuWHrzqdaAKBoi1O6dqI=
-github.com/sephiroth74/go_streams v1.0.0/go.mod h1:2f7btjtRaG4mWwraSb9P/Qe7r1T3+X3tz6lofdkKxbM=
 github.com/sephiroth74/go_streams v1.0.1 h1:ese+fHVtloDGwCPNJU0kBj8L4f7zI36fVpZTyO0r5pY=
 github.com/sephiroth74/go_streams v1.0.1/go.mod h1:+WGQKi1mjWZjoGBG+CA1M1RJFPIcANhzyufJKHsP3ms=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

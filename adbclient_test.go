@@ -44,7 +44,7 @@ func init() {
 }
 
 func NewClient() *adbclient.Client {
-	return adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
+	return adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555}, true)
 }
 
 func AssertClientConnected(t *testing.T, client *adbclient.Client) {
@@ -54,7 +54,7 @@ func AssertClientConnected(t *testing.T, client *adbclient.Client) {
 }
 
 func TestIsConnected(t *testing.T) {
-	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
+	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555}, true)
 	defer client.Disconnect()
 	result, err := client.Connect(5 * time.Second)
 	assert.Nil(t, err)
@@ -116,7 +116,7 @@ func TestRecordScreen(t *testing.T) {
 }
 
 func TestConnect(t *testing.T) {
-	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
+	var client = NewClient()
 
 	result, err := client.Connect(5 * time.Second)
 	logging.Log.Debug().Msgf("result=%s", result.ToString())
@@ -141,8 +141,7 @@ func TestConnect(t *testing.T) {
 }
 
 func TestWaitForDevice(t *testing.T) {
-	var client = adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555})
-
+	var client = NewClient()
 	result, err := client.Connect(5 * time.Second)
 	assert.Nil(t, err)
 	assert.Equal(t, true, result.IsOk())
@@ -256,7 +255,7 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestMdns(t *testing.T) {
-	var mdns = mdns.NewMdns(connection.NewConnection())
+	var mdns = mdns.NewMdns(connection.NewConnection(), true)
 	result, err := mdns.Check()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
@@ -272,7 +271,7 @@ func TestMdns(t *testing.T) {
 
 	assert.True(t, len(devices) > 0)
 
-	client2 := adbclient.NewClient(devices[1])
+	client2 := adbclient.NewClient(devices[1], true)
 	result, err = client2.Connect(5 * time.Second)
 	assert.Nil(t, err)
 	logging.Log.Debug().Msg(result.String())
@@ -876,7 +875,7 @@ func TestScan(t *testing.T) {
 
 	logging.Log.Debug().Msgf("Scanning mdns services...")
 
-	client := adbclient.NullClient()
+	client := adbclient.NullClient(true)
 	services, _ := client.Mdns.Services()
 
 	for _, service := range services {

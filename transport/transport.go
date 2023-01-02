@@ -165,11 +165,15 @@ func (p *ProcessBuilder) Start(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exe
 	var cancel context.CancelFunc
 
 	if p.timeout > 0 {
-		logging.Log.Debug().Msgf("Executing (timeout=%s) `%s %s`", p.timeout.String(), adb, strings.Join(finalArgs, " "))
+		if p.verbose {
+			logging.Log.Debug().Msgf("Executing (timeout=%s) `%s %s`", p.timeout.String(), adb, strings.Join(finalArgs, " "))
+		}
 		ctx, cancel = context.WithTimeout(context.Background(), p.timeout)
 		cmd = exec.CommandContext(ctx, *p.command.path, finalArgs...)
 	} else {
-		logging.Log.Debug().Msgf("Executing `%s %s`", adb, strings.Join(finalArgs, " "))
+		if p.verbose {
+			logging.Log.Debug().Msgf("Executing `%s %s`", adb, strings.Join(finalArgs, " "))
+		}
 		ctx, cancel = context.WithCancel(context.Background())
 		cmd = exec.Command(*p.command.path, finalArgs...)
 	}

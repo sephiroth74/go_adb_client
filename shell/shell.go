@@ -18,12 +18,14 @@ import (
 type Shell struct {
 	Address types.Serial
 	Adb     *string
+	Verbose bool
 }
 
-func NewShell(adb *string, serial types.Serial) *Shell {
+func NewShell(adb *string, serial types.Serial, verbose bool) *Shell {
 	var s = Shell{
 		Address: serial,
 		Adb:     adb,
+		Verbose: verbose,
 	}
 	return &s
 }
@@ -37,7 +39,7 @@ func (s Shell) Executef(format string, timeout time.Duration, v ...any) (transpo
 }
 
 func (s Shell) NewProcess() *transport.ProcessBuilder {
-	return transport.NewProcessBuilder().WithSerial(&s.Address).WithPath(s.Adb).WithCommand("shell")
+	return transport.NewProcessBuilder().Verbose(s.Verbose).WithSerial(&s.Address).WithPath(s.Adb).WithCommand("shell")
 }
 
 func (s Shell) Cat(filename string) (transport.Result, error) {
