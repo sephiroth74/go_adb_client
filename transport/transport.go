@@ -146,9 +146,9 @@ func (p *ProcessBuilder) WithCommand(command string) *ProcessBuilder {
 }
 
 func (p *ProcessBuilder) Start(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exec.Cmd, context.CancelFunc, error) {
-	if p.verbose {
-		logging.Log.Debug().Msgf(repr.String(p.command))
-	}
+	//if p.verbose {
+	//	logging.Log.Debug().Msgf(repr.String(p.command))
+	//}
 
 	var adb = filepath.Base(*p.command.path)
 	var finalArgs []string
