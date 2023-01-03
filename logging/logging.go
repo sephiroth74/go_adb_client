@@ -11,7 +11,7 @@ var (
 	Log = zerolog.New(zerolog.ConsoleWriter{
 		Out:           os.Stderr,
 		NoColor:       false,
-		TimeFormat:    "15:04:05.999Z07:00",
+		TimeFormat:    "15:04:05.000",
 		FormatMessage: func(i interface{}) string { return fmt.Sprintf("→ %s", i) },
 		FormatLevel: func(i interface{}) string {
 			var l string
