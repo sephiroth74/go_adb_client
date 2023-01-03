@@ -21,13 +21,11 @@ type Client struct {
 	Channel chan rxgo.Item
 	Address types.Serial
 	Shell   *shell.Shell
-	Verbose bool
 }
 
 func NewClient(device types.Serial, verbose bool) *Client {
 	var conn = connection.NewConnection(verbose)
 	client := new(Client)
-	client.Verbose = verbose
 	client.Conn = conn
 	client.Mdns = mdns.NewMdns(client.Conn)
 	client.Address = device

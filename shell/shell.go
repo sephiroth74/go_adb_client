@@ -30,14 +30,14 @@ func NewShell(conn *connection.Connection, serial types.Serial) *Shell {
 }
 
 func (s Shell) Execute(command string, timeout time.Duration, args ...string) (transport.Result, error) {
-	return s.NewProcess().WithTimeout(timeout).WithArgs(command).WithArgs(args...).Invoke()
+	return s.newProcess().WithTimeout(timeout).WithArgs(command).WithArgs(args...).Invoke()
 }
 
 func (s Shell) Executef(format string, timeout time.Duration, v ...any) (transport.Result, error) {
-	return s.NewProcess().WithTimeout(timeout).WithArgs(fmt.Sprintf(format, v...)).Invoke()
+	return s.newProcess().WithTimeout(timeout).WithArgs(fmt.Sprintf(format, v...)).Invoke()
 }
 
-func (s Shell) NewProcess() *transport.ProcessBuilder {
+func (s Shell) newProcess() *transport.ProcessBuilder {
 	return s.Conn.NewProcessBuilder().WithSerial(&s.Address).WithCommand("shell")
 }
 
@@ -181,7 +181,7 @@ func (s Shell) GetEvents() ([]types.Pair[string, string], error) {
 }
 
 func (s Shell) ScreenRecord(options ScreenRecordOptions, c chan os.Signal, filename string) (transport.Result, error) {
-	var pb = s.NewProcess()
+	var pb = s.newProcess()
 
 	args := []string{"screenrecord"}
 	args = append(args, "--bit-rate", fmt.Sprintf("%d", options.Bitrate))
@@ -213,7 +213,7 @@ func (s Shell) ScreenRecord(options ScreenRecordOptions, c chan os.Signal, filen
 }
 
 func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
-	result, err := s.NewProcess().WithArgs("ls -lHhap --color=none", dirname).Invoke()
+	result, err := s.newProcess().WithArgs("ls -lHhap --color=none", dirname).Invoke()
 	var emptyList []types.DeviceFile
 	if err != nil {
 		return emptyList, err
@@ -231,7 +231,7 @@ func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
 }
 
 func (s Shell) ListSettings(namespace types.SettingsNamespace) (*properties.Properties, error) {
-	result, err := s.NewProcess().WithArgs(fmt.Sprintf("settings list %s", namespace)).Invoke()
+	result, err := s.newProcess().WithArgs(fmt.Sprintf("settings list %s", namespace)).Invoke()
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +243,7 @@ func (s Shell) ListSettings(namespace types.SettingsNamespace) (*properties.Prop
 }
 
 func (s Shell) GetSetting(key string, namespace types.SettingsNamespace) (*string, error) {
-	result, err := s.NewProcess().WithArgs(fmt.Sprintf("settings get %s %s", namespace, key)).Invoke()
+	result, err := s.newProcess().WithArgs(fmt.Sprintf("settings get %s %s", namespace, key)).Invoke()
 
 	if err != nil {
 		return nil, err
@@ -261,7 +261,7 @@ func (s Shell) GetSetting(key string, namespace types.SettingsNamespace) (*strin
 }
 
 func (s Shell) PutSetting(key string, value string, namespace types.SettingsNamespace) error {
-	result, err := s.NewProcess().WithArgs(fmt.Sprintf("settings put %s %s %s", namespace, key, value)).Invoke()
+	result, err := s.newProcess().WithArgs(fmt.Sprintf("settings put %s %s %s", namespace, key, value)).Invoke()
 
 	if err != nil {
 		return err
@@ -275,7 +275,7 @@ func (s Shell) PutSetting(key string, value string, namespace types.SettingsName
 }
 
 func (s Shell) DeleteSetting(key string, namespace types.SettingsNamespace) error {
-	result, err := s.NewProcess().WithArgs(fmt.Sprintf("settings delete %s %s", namespace, key)).Invoke()
+	result, err := s.newProcess().WithArgs(fmt.Sprintf("settings delete %s %s", namespace, key)).Invoke()
 
 	if err != nil {
 		return err
