@@ -1,6 +1,7 @@
 package adbclient
 
 import (
+	"errors"
 	"fmt"
 	streams "github.com/sephiroth74/go_streams"
 	"net"
@@ -205,6 +206,10 @@ func (c Client) Uninstall(packageName string) (transport.Result, error) {
 func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
 	var args []string
 
+	if options.Filename != "" && options.File != nil {
+		return transport.Result{}, errors.New("filename and file cannot be used togethere")
+	}
+
 	if options.Expr != "" {
 		args = append(args, "-e", options.Expr)
 	}
@@ -213,7 +218,7 @@ func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
 		args = append(args, "-d")
 	}
 
-	if options.Filename != "" && options.File == nil {
+	if options.Filename != "" {
 		args = append(args, "-f", options.Filename)
 	}
 
