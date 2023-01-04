@@ -268,6 +268,16 @@ func (p PackageManager) RevokePermission(packageName string, permission string) 
 	return p.Shell.Executef("pm revoke %s %s", 0, packageName, permission)
 }
 
+// Enable enable a package
+func (p PackageManager) Enable(packageName string) (transport.Result, error) {
+	return p.Shell.Executef("pm enable %s", 0, packageName)
+}
+
+// Disable disable a package
+func (p PackageManager) Disable(packageName string) (transport.Result, error) {
+	return p.Shell.Executef("pm disable %s", 0, packageName)
+}
+
 type UninstallOptions struct {
 	// -k
 	KeepData bool
