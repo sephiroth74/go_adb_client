@@ -213,8 +213,8 @@ func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
 		args = append(args, "-d")
 	}
 
-	if options.Filename != "" {
-		args = append(args, options.Filename)
+	if options.Filename != "" && options.File == nil {
+		args = append(args, "-f", options.Filename)
 	}
 
 	if options.Format != "" {
@@ -243,6 +243,10 @@ func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
 
 	if options.Timeout > 0 {
 		pb.WithTimeout(options.Timeout)
+	}
+
+	if options.File != nil {
+		pb.WithStdout(options.File)
 	}
 
 	return pb.Invoke()

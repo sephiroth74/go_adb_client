@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -12,6 +13,8 @@ type LogcatOptions struct {
 	Dump bool
 	// -f <filename>	Writes log message output to <filename>. The default is stdout.
 	Filename string
+	// redirect the output to this file instead of the default output
+	File *os.File
 	// -s	Equivalent to the filter expression '*:S', which sets priority for all tags to silent and is used to precede a list of filter expressions that add content.
 	Tags []LogcatTag
 	// -v <format>	Sets the output format for log messages. The default is the threadtime format
@@ -29,6 +32,7 @@ func NewLogcatOptions() LogcatOptions {
 		Expr:     "",
 		Dump:     false,
 		Filename: "",
+		File:     nil,
 		Tags:     nil,
 		Format:   "",
 		Since:    nil,
