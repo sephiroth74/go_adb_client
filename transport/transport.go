@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bufio"
+	"github.com/pkg/errors"
 	"os"
 	"syscall"
 
@@ -34,7 +35,7 @@ func (r Result) IsOk() bool {
 }
 
 func (r Result) NewError() error {
-	return fmt.Errorf("invalid exit code: %d", r.ExitCode)
+	return errors.New(fmt.Sprintf("invalid exit code: %d\n%s", r.ExitCode, r.Error()))
 }
 
 func (r Result) Output() string {
