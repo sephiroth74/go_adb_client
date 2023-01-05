@@ -164,8 +164,7 @@ func (c Client) Unmount(dir string) (transport.Result, error) {
 // BugReport ExecuteWithTimeout and return the result of the command 'adb bugreport'
 // dst: optional target local folder/filename for the bugreport
 func (c Client) BugReport(dst string) (transport.Result, error) {
-	result, err := c.Conn.BugReport(c.Address.GetSerialAddress(), dst)
-	return WaitAndReturn(&result, err, 0)
+	return c.Conn.BugReport(c.Address.GetSerialAddress(), dst).Invoke()
 }
 
 // Pull a file from the device.

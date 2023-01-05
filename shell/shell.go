@@ -5,8 +5,10 @@ import (
 	"github.com/magiconair/properties"
 	"github.com/sephiroth74/go_adb_client/connection"
 	streams "github.com/sephiroth74/go_streams"
+	"io/fs"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -155,6 +157,59 @@ func (s Shell) Remove(filename string, force bool) (bool, error) {
 		return false, nil
 	}
 	return result.IsOk(), nil
+}
+
+func (s Shell) Chmod(mode os.FileMode, recursive bool, filename string) error {
+	var sb []string
+	if recursive {
+		sb = append(sb, "-R")
+	}
+	sb = append(sb, mode.String())
+	sb = append(sb, filename)
+
+	res, err := s.Execute("chmod", sb...)
+	if err != nil {
+		return err
+	}
+	if !res.IsOk() {
+		return res.NewError()
+	}
+	return nil
+}
+
+func (s Shell) ChmodString(mode string, recursive bool, filename string) error {
+	var sb []string
+	if recursive {
+		sb = append(sb, "-R")
+	}
+	sb = append(sb, mode)
+	sb = append(sb, filename)
+
+	res, err := s.Execute("chmod", sb...)
+	if err != nil {
+		return err
+	}
+	if !res.IsOk() {
+		return res.NewError()
+	}
+	return nil
+}
+
+func (s Shell) Stat(filename string) (fs.FileMode, error) {
+	res, err := s.Execute("stat", "-L -c '%a'", filename)
+	if err != nil {
+		return 0, err
+	}
+	if !res.IsOk() {
+		return 0, res.NewError()
+	}
+
+	octal := fmt.Sprintf("%04s", res.Output())
+	parseInt, err := strconv.ParseInt(octal, 0, 32)
+	if err != nil {
+		return 0, err
+	}
+	return fs.FileMode(parseInt), nil
 }
 
 func (s Shell) SendKeyEvent(event input.KeyCode) (transport.Result, error) {

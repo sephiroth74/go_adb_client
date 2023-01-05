@@ -56,6 +56,17 @@ func AssertClientConnected(t *testing.T, client *adbclient.Client) {
 	assert.True(t, result.IsOk(), "Error: %s", result.Error())
 }
 
+func TestBugReport(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	dst := "/Users/alessandro/Desktop/AndroidTV"
+	report, err := client.BugReport(dst)
+
+	assert.Nil(t, err)
+	assert.True(t, report.IsOk())
+}
+
 func TestStdout(t *testing.T) {
 	var client = NewClient()
 	AssertClientConnected(t, client)
@@ -297,13 +308,6 @@ func TestMdns(t *testing.T) {
 	value, err := client2.IsConnected()
 	assert.Nil(t, err)
 	assert.True(t, value)
-}
-
-func TestBugReport(t *testing.T) {
-	var client = NewClient()
-	result, err := client.BugReport("")
-	assert.Nil(t, err)
-	assert.True(t, result.IsOk())
 }
 
 func TestPull(t *testing.T) {

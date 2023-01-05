@@ -197,12 +197,11 @@ func (c Connection) ListDevices() ([]*types.Device, error) {
 	return devices, nil
 }
 
-func (c Connection) BugReport(addr string, dst string) (transport.Result, error) {
+func (c Connection) BugReport(addr string, dst string) *transport.ProcessBuilder {
 	return c.NewProcessBuilder().
 		WithSerialAddr(addr).
 		WithCommand("bugreport").
-		WithArgs(dst).
-		Invoke()
+		WithArgs(dst)
 }
 
 func (c Connection) Pull(addr string, src string, dst string) (transport.Result, error) {

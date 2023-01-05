@@ -182,7 +182,6 @@ func (p *ProcessBuilder) start(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exe
 	}
 
 	if p.stdout != nil {
-		//cmd.Stdout = bufio.NewWriter(p.stdout)
 		cmd.Stdout = *p.stdout
 	} else if stdout != nil {
 		cmd.Stdout = stdout
