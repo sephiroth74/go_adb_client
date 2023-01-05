@@ -287,7 +287,7 @@ func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
 	}
 
 	deviceFiles := streams.MapNotNull(result.OutputLines(), func(line string) (types.DeviceFile, error) {
-		return types.NewDeviceFile(line)
+		return types.NewDeviceFile(dirname, line)
 	})
 
 	return deviceFiles, nil

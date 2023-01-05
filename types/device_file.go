@@ -2,6 +2,7 @@ package types
 
 import (
 	"errors"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -21,13 +22,15 @@ type DeviceFile struct {
 	Date        string
 	Time        string
 	Name        string
+	Parent      string
 }
 
-func NewDeviceFile(line string) (DeviceFile, error) {
+func NewDeviceFile(parent string, line string) (DeviceFile, error) {
 	slice := deviceFileRegexp.Split(line, 8)
 	if len(slice) == 8 {
 		linkCount, _ := strconv.Atoi(slice[1])
 		return DeviceFile{
+			Parent:      parent,
 			Line:        line,
 			Permissions: slice[0],
 			LinkCount:   linkCount,
@@ -53,6 +56,13 @@ func (d DeviceFile) IsSymlink() bool {
 
 func (d DeviceFile) IsDir() bool {
 	return d.Permissions[0] == 'd'
+}
+
+func (d DeviceFile) Abs() string {
+	if d.IsSymlink() {
+		return d.Symlink()
+	}
+	return filepath.Clean(filepath.Join(d.Parent, d.Name))
 }
 
 func (d DeviceFile) Symlink() string {
