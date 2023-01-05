@@ -212,6 +212,17 @@ func (s Shell) Stat(filename string) (fs.FileMode, error) {
 	return fs.FileMode(parseInt), nil
 }
 
+func (s Shell) Statf(format string, filename string) (string, error) {
+	res, err := s.Execute("stat", fmt.Sprintf("-L -c '%s'", format), filename)
+	if err != nil {
+		return "", err
+	}
+	if !res.IsOk() {
+		return "", res.NewError()
+	}
+	return res.Output(), nil
+}
+
 func (s Shell) SendKeyEvent(event input.KeyCode) (transport.Result, error) {
 	return s.SendKeyEvents(event)
 }
@@ -276,12 +287,16 @@ func (s Shell) ScreenRecord(options ScreenRecordOptions, c chan os.Signal, filen
 }
 
 func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
-	result, err := s.newProcess().WithArgs("ls -lHhap --color=none", dirname).Invoke()
 	var emptyList []types.DeviceFile
+	if !s.IsDir(dirname) {
+		return emptyList, os.ErrNotExist
+	}
+
+	result, err := s.newProcess().WithArgs("ls -lHhap --color=none", dirname).Invoke()
+
 	if err != nil {
 		return emptyList, err
 	}
-
 	if !result.IsOk() {
 		return emptyList, err
 	}
@@ -289,7 +304,6 @@ func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
 	deviceFiles := streams.MapNotNull(result.OutputLines(), func(line string) (types.DeviceFile, error) {
 		return types.NewDeviceFile(dirname, line)
 	})
-
 	return deviceFiles, nil
 }
 
