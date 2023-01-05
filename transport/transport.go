@@ -1,8 +1,8 @@
 package transport
 
 import (
-	"bufio"
 	"github.com/pkg/errors"
+	"io"
 	"os"
 	"syscall"
 
@@ -89,7 +89,8 @@ type ProcessBuilder struct {
 	timeout time.Duration
 	command *TransportCommand
 	verbose bool
-	stdout  *os.File
+	stdout  *io.Writer
+	stderr  *io.Writer
 }
 
 func NewProcessBuilder() *ProcessBuilder {
@@ -126,8 +127,13 @@ func (p *ProcessBuilder) Verbose(value bool) *ProcessBuilder {
 	return p
 }
 
-func (p *ProcessBuilder) WithStdout(value *os.File) *ProcessBuilder {
+func (p *ProcessBuilder) WithStdout(value *io.Writer) *ProcessBuilder {
 	p.stdout = value
+	return p
+}
+
+func (p *ProcessBuilder) WithStderr(value *io.Writer) *ProcessBuilder {
+	p.stderr = value
 	return p
 }
 
@@ -146,11 +152,7 @@ func (p *ProcessBuilder) WithCommand(command string) *ProcessBuilder {
 	return p
 }
 
-func (p *ProcessBuilder) Start(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exec.Cmd, context.CancelFunc, error) {
-	//if p.verbose {
-	//	logging.Log.Debug().Msgf(repr.String(p.command))
-	//}
-
+func (p *ProcessBuilder) start(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exec.Cmd, context.CancelFunc, error) {
 	var adb = filepath.Base(*p.command.path)
 	var finalArgs []string
 
@@ -180,12 +182,15 @@ func (p *ProcessBuilder) Start(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exe
 	}
 
 	if p.stdout != nil {
-		cmd.Stdout = bufio.NewWriter(p.stdout)
+		//cmd.Stdout = bufio.NewWriter(p.stdout)
+		cmd.Stdout = *p.stdout
 	} else if stdout != nil {
 		cmd.Stdout = stdout
 	}
 
-	if stderr != nil {
+	if p.stderr != nil {
+		cmd.Stderr = *p.stderr
+	} else if stderr != nil {
 		cmd.Stderr = stderr
 	}
 
@@ -197,7 +202,7 @@ func (p *ProcessBuilder) Start(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exe
 
 func (p *ProcessBuilder) Invoke() (Result, error) {
 	var outBuf, errBuf bytes.Buffer
-	cmd, cancel, err := p.Start(&outBuf, &errBuf)
+	cmd, cancel, err := p.start(&outBuf, &errBuf)
 	defer cancel()
 
 	if err != nil {
@@ -223,7 +228,7 @@ func (p *ProcessBuilder) Invoke() (Result, error) {
 
 func (p *ProcessBuilder) InvokeWithCancel(closeChannel chan os.Signal) (Result, error) {
 	var outBuf, errBuf bytes.Buffer
-	cmd, cancel, err := p.Start(&outBuf, &errBuf)
+	cmd, cancel, err := p.start(&outBuf, &errBuf)
 	defer cancel()
 
 	if err != nil {

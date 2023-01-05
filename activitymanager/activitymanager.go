@@ -11,13 +11,13 @@ type ActivityManager struct {
 }
 
 func (a ActivityManager) Broadcast(intent *types.Intent) (transport.Result, error) {
-	return a.Shell.Execute("am", 0, "broadcast", intent.String())
+	return a.Shell.ExecuteWithTimeout("am", 0, "broadcast", intent.String())
 }
 
 func (a ActivityManager) Start(intent *types.Intent) (transport.Result, error) {
-	return a.Shell.Execute("am", 0, "start", intent.String())
+	return a.Shell.ExecuteWithTimeout("am", 0, "start", intent.String())
 }
 
 func (a ActivityManager) ForceStop(packageName string) (transport.Result, error) {
-	return a.Shell.Executef("am force-stop %s", 0, packageName)
+	return a.Shell.Executef("am force-stop %s", packageName)
 }

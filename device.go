@@ -1,10 +1,12 @@
 package adbclient
 
 import (
+	"bufio"
 	"github.com/sephiroth74/go_adb_client/activitymanager"
 	"github.com/sephiroth74/go_adb_client/input"
 	"github.com/sephiroth74/go_adb_client/packagemanager"
 	"github.com/sephiroth74/go_adb_client/transport"
+	"io"
 	"os"
 )
 
@@ -43,14 +45,15 @@ func (d Device) Version() *string {
 }
 
 func (d Device) SaveScreenCap(output string) (transport.Result, error) {
-	return d.Client.Shell.Execute("screencap", 0, "-p", output)
+	return d.Client.Shell.ExecuteWithTimeout("screencap", 0, "-p", output)
 }
 
 func (d Device) WriteScreenCap(output *os.File) (transport.Result, error) {
 	var pb = d.Client.NewProcess()
+	var writer io.Writer = bufio.NewWriter(output)
 	pb.WithCommand("exec-out")
 	pb.WithArgs("screencap", "-p")
-	pb.WithStdout(output)
+	pb.WithStdout(&writer)
 	return pb.Invoke()
 }
 
@@ -95,7 +98,7 @@ func (d Device) Power() (bool, error) {
 
 // IsScreenOn Return true if the device screen is on
 func (d Device) IsScreenOn() (bool, error) {
-	result, err := d.Client.Shell.Execute("dumpsys input_method | egrep 'screenOn *=' | sed 's/ *screenOn = \\(.*\\)/\\1/g'", 0)
+	result, err := d.Client.Shell.ExecuteWithTimeout("dumpsys input_method | egrep 'screenOn *=' | sed 's/ *screenOn = \\(.*\\)/\\1/g'", 0)
 	if err != nil {
 		return false, err
 	}

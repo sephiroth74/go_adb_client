@@ -1,6 +1,8 @@
 package adbclient_test
 
 import (
+	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/sephiroth74/go_adb_client/scanner"
@@ -8,6 +10,7 @@ import (
 	"github.com/sephiroth74/go_adb_client/transport"
 	streams "github.com/sephiroth74/go_streams"
 	"golang.org/x/sys/unix"
+	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -51,6 +54,21 @@ func AssertClientConnected(t *testing.T, client *adbclient.Client) {
 	result, err := client.Connect(5 * time.Second)
 	assert.Nil(t, err, "Error connecting to %s", client.Address.String())
 	assert.True(t, result.IsOk(), "Error: %s", result.Error())
+}
+
+func TestStdout(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	s := bytes.NewBufferString("")
+	var w io.Writer = bufio.NewWriter(s)
+
+	result, err := client.Shell.NewProcess().WithArgs("nproc").WithStdout(&w).Invoke()
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+	assert.True(t, result.Output() == "")
+	assert.True(t, result.Error() == "")
+	assert.True(t, s.Len() > 0)
 }
 
 func TestIsConnected(t *testing.T) {

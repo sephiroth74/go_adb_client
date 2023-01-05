@@ -29,12 +29,20 @@ func NewShell(conn *connection.Connection, serial types.Serial) *Shell {
 	return &s
 }
 
-func (s Shell) Execute(command string, timeout time.Duration, args ...string) (transport.Result, error) {
+func (s Shell) NewProcess() *transport.ProcessBuilder {
+	return s.newProcess()
+}
+
+func (s Shell) Execute(command string, args ...string) (transport.Result, error) {
+	return s.ExecuteWithTimeout(command, 0, args...)
+}
+
+func (s Shell) ExecuteWithTimeout(command string, timeout time.Duration, args ...string) (transport.Result, error) {
 	return s.newProcess().WithTimeout(timeout).WithArgs(command).WithArgs(args...).Invoke()
 }
 
-func (s Shell) Executef(format string, timeout time.Duration, v ...any) (transport.Result, error) {
-	return s.newProcess().WithTimeout(timeout).WithArgs(fmt.Sprintf(format, v...)).Invoke()
+func (s Shell) Executef(format string, v ...any) (transport.Result, error) {
+	return s.newProcess().WithArgs(fmt.Sprintf(format, v...)).Invoke()
 }
 
 func (s Shell) newProcess() *transport.ProcessBuilder {
@@ -42,21 +50,21 @@ func (s Shell) newProcess() *transport.ProcessBuilder {
 }
 
 func (s Shell) Cat(filename string) (transport.Result, error) {
-	return s.Execute("cat", 0, filename)
+	return s.ExecuteWithTimeout("cat", 0, filename)
 }
 
 func (s Shell) Whoami() (transport.Result, error) {
-	return s.Execute("whoami", 0)
+	return s.ExecuteWithTimeout("whoami", 0)
 }
 
 func (s Shell) Which(command string) (transport.Result, error) {
-	return s.Execute("which", 0, command)
+	return s.ExecuteWithTimeout("which", 0, command)
 }
 
-// GetProp Execute the command "adb shell getprop key" and returns its value
+// GetProp ExecuteWithTimeout the command "adb shell getprop key" and returns its value
 // if found, nil otherwise
 func (s Shell) GetProp(key string) *string {
-	result, err := s.Execute("getprop", 0, key)
+	result, err := s.ExecuteWithTimeout("getprop", 0, key)
 	if err != nil {
 		return nil
 	}
@@ -72,7 +80,7 @@ func (s Shell) GetProp(key string) *string {
 // GetPropType Returns the property type.
 // Can be string, int, bool, enum [list string]
 func (s Shell) GetPropType(key string) (*string, bool) {
-	result, err := s.Execute("getprop", 0, "-T", key)
+	result, err := s.ExecuteWithTimeout("getprop", 0, "-T", key)
 	if err != nil {
 		return nil, false
 	}
@@ -86,7 +94,7 @@ func (s Shell) GetPropType(key string) (*string, bool) {
 }
 
 func (s Shell) GetProps() (*properties.Properties, error) {
-	result, err := s.Execute("getprop", 0)
+	result, err := s.ExecuteWithTimeout("getprop", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +120,7 @@ func (s Shell) GetProps() (*properties.Properties, error) {
 }
 
 func (s Shell) SetProp(key string, value string) bool {
-	result, err := s.Execute("setprop", constants.DEFAULT_TIMEOUT, key, value)
+	result, err := s.ExecuteWithTimeout("setprop", constants.DEFAULT_TIMEOUT, key, value)
 	if err != nil {
 		return false
 	}
@@ -142,7 +150,7 @@ func (s Shell) Remove(filename string, force bool) (bool, error) {
 	} else {
 		command = fmt.Sprintf("rm %s", filename)
 	}
-	result, err := s.Execute(command, 0)
+	result, err := s.ExecuteWithTimeout(command, 0)
 	if err != nil {
 		return false, nil
 	}
@@ -158,20 +166,20 @@ func (s Shell) SendKeyEvents(events ...input.KeyCode) (transport.Result, error) 
 	for i, v := range events {
 		format[i] = fmt.Sprintf("%s", v.String())
 	}
-	return s.Executef("input keyevent %s", 0, strings.Join(format, " "))
+	return s.Executef("input keyevent %s", strings.Join(format, " "))
 }
 
 func (s Shell) SendChar(code rune) (transport.Result, error) {
-	return s.Executef("input text %c", 0, code)
+	return s.Executef("input text %c", code)
 }
 
 func (s Shell) SendString(value string) (transport.Result, error) {
-	return s.Executef("input text '%s'", 0, value)
+	return s.Executef("input text '%s'", value)
 }
 
 // GetEvents Returns a slice of Pairs each one containing the event type and the event name
 func (s Shell) GetEvents() ([]types.Pair[string, string], error) {
-	result, err := s.Execute("getevent", 0, "-p")
+	result, err := s.ExecuteWithTimeout("getevent", 0, "-p")
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +340,7 @@ func parsePropLines(text string) ([]types.Pair[string, string], error) {
 }
 
 func testFile(shell Shell, filename string, mode string) bool {
-	result, err := shell.Execute(fmt.Sprintf("test -%s %s && echo 1 || echo 0", mode, filename), 0)
+	result, err := shell.ExecuteWithTimeout(fmt.Sprintf("test -%s %s && echo 1 || echo 0", mode, filename), 0)
 	if err != nil || !result.IsOk() {
 		return false
 	}

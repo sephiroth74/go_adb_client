@@ -1,9 +1,11 @@
 package adbclient
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	streams "github.com/sephiroth74/go_streams"
+	"io"
 	"net"
 	"time"
 
@@ -159,7 +161,7 @@ func (c Client) Unmount(dir string) (transport.Result, error) {
 	return WaitAndReturn(&result, err, time.Duration(1)*time.Second)
 }
 
-// BugReport Execute and return the result of the command 'adb bugreport'
+// BugReport ExecuteWithTimeout and return the result of the command 'adb bugreport'
 // dst: optional target local folder/filename for the bugreport
 func (c Client) BugReport(dst string) (transport.Result, error) {
 	result, err := c.Conn.BugReport(c.Address.GetSerialAddress(), dst)
@@ -251,7 +253,8 @@ func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
 	}
 
 	if options.File != nil {
-		pb.WithStdout(options.File)
+		var writer io.Writer = bufio.NewWriter(options.File)
+		pb.WithStdout(&writer)
 	}
 
 	return pb.Invoke()

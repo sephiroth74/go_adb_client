@@ -17,7 +17,7 @@ type PackageManager struct {
 }
 
 func (p PackageManager) Path(packageName string) (string, error) {
-	result, err := p.Shell.Execute("pm", 0, "path", packageName)
+	result, err := p.Shell.ExecuteWithTimeout("pm", 0, "path", packageName)
 	if err != nil {
 		return "", err
 	}
@@ -34,7 +34,7 @@ func (p PackageManager) ListPackages(options PackageOptions) ([]Package, error) 
 }
 
 func (p PackageManager) IsSystem(name string) (bool, error) {
-	result, err := p.Shell.Execute(
+	result, err := p.Shell.ExecuteWithTimeout(
 		fmt.Sprintf("pm dump %s | egrep '^ {1,}flags=' | egrep ' {1,}SYSTEM {1,}'", name), 0)
 
 	if err != nil {
@@ -45,7 +45,7 @@ func (p PackageManager) IsSystem(name string) (bool, error) {
 }
 
 func (p PackageManager) Dump(name string) (transport.Result, error) {
-	return p.Shell.Executef("pm dump %s", 0, name)
+	return p.Shell.Executef("pm dump %s", name)
 }
 
 // ListPackagesWithFilter List packages on the device
@@ -87,7 +87,7 @@ func (p PackageManager) ListPackagesWithFilter(options PackageOptions, filter st
 		args = append(args, filter)
 	}
 
-	result, err := p.Shell.Execute("pm", 0, args...)
+	result, err := p.Shell.ExecuteWithTimeout("pm", 0, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (p PackageManager) Install(src string, options *InstallOptions) (transport.
 		}
 	}
 	args = append(args, src)
-	return p.Shell.Execute("cmd package install", 0, args...)
+	return p.Shell.ExecuteWithTimeout("cmd package install", 0, args...)
 }
 
 // Uninstall
@@ -171,7 +171,7 @@ func (p PackageManager) Uninstall(packageName string, options *UninstallOptions)
 		}
 	}
 	args = append(args, packageName)
-	return p.Shell.Execute("cmd package uninstall", 0, args...)
+	return p.Shell.ExecuteWithTimeout("cmd package uninstall", 0, args...)
 }
 
 func (p PackageManager) RuntimePermissions(packageName string) ([]types.PackagePermission, error) {
@@ -257,25 +257,25 @@ func (p PackageManager) DumpPackage(packageName string) (*SimplePackageReader, e
 
 // Clear executes a "pm clear packageName" on the connected device
 func (p PackageManager) Clear(packageName string) (transport.Result, error) {
-	return p.Shell.Executef("pm clear %s", 0, packageName)
+	return p.Shell.Executef("pm clear %s", packageName)
 }
 
 func (p PackageManager) GrantPermission(packageName string, permission string) (transport.Result, error) {
-	return p.Shell.Executef("pm grant %s %s", 0, packageName, permission)
+	return p.Shell.Executef("pm grant %s %s", packageName, permission)
 }
 
 func (p PackageManager) RevokePermission(packageName string, permission string) (transport.Result, error) {
-	return p.Shell.Executef("pm revoke %s %s", 0, packageName, permission)
+	return p.Shell.Executef("pm revoke %s %s", packageName, permission)
 }
 
 // Enable enable a package
 func (p PackageManager) Enable(packageName string) (transport.Result, error) {
-	return p.Shell.Executef("pm enable %s", 0, packageName)
+	return p.Shell.Executef("pm enable %s", packageName)
 }
 
 // Disable disable a package
 func (p PackageManager) Disable(packageName string) (transport.Result, error) {
-	return p.Shell.Executef("pm disable %s", 0, packageName)
+	return p.Shell.Executef("pm disable %s", packageName)
 }
 
 type UninstallOptions struct {
