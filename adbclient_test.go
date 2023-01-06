@@ -99,11 +99,15 @@ func TestDirWalk(t *testing.T) {
 	AssertClientConnected(t, client)
 
 	var device = adbclient.NewDevice(client)
-	device.Client.Root()
+	root, err := device.Client.Root()
+	assert.Nil(t, err)
+	assert.True(t, root.IsOk())
 
-	result, err := device.Client.Shell.ListDir("/sdcard/Documents")
+	dirname := "/sdcard/"
+	result, err := device.Client.Shell.ListDir(dirname)
 	assert.Nil(t, err)
 
+	logging.Log.Info().Msgf("result of listdir: %s", dirname)
 	for _, line := range result {
 		logging.Log.Info().Msg(line.String())
 	}

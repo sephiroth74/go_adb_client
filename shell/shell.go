@@ -213,7 +213,7 @@ func (s Shell) Stat(filename string) (fs.FileMode, error) {
 }
 
 func (s Shell) Statf(format string, filename string) (string, error) {
-	res, err := s.Execute("stat", fmt.Sprintf("-L -c '%s'", format), filename)
+	res, err := s.Execute("stat", fmt.Sprintf("-L -c \"%s\"", format), filename)
 	if err != nil {
 		return "", err
 	}
@@ -288,11 +288,12 @@ func (s Shell) ScreenRecord(options ScreenRecordOptions, c chan os.Signal, filen
 
 func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
 	var emptyList []types.DeviceFile
+
 	if !s.IsDir(dirname) {
 		return emptyList, os.ErrNotExist
 	}
 
-	result, err := s.newProcess().WithArgs("ls -lHhap --color=none", dirname).Invoke()
+	result, err := s.newProcess().WithArgs("ls -lLHap --color=none", dirname).Invoke()
 
 	if err != nil {
 		return emptyList, err
@@ -301,9 +302,42 @@ func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
 		return emptyList, err
 	}
 
+	parser := types.DefaultDeviceFileParser{}
+
 	deviceFiles := streams.MapNotNull(result.OutputLines(), func(line string) (types.DeviceFile, error) {
-		return types.NewDeviceFile(dirname, line)
+		return parser.Parse(dirname, line, "")
 	})
+
+	//statsParser := types.StatDeviceFileParser{}
+	//
+	//if streams.IndexOf(deviceFiles, func(file types.DeviceFile) bool {
+	//	return file.Name == "./"
+	//}) == -1 {
+	//	statf, err := s.Statf("%A %h %U %G %b %Y %n", dirname)
+	//	if err == nil {
+	//		file, err := statsParser.Parse(filepath.Dir(dirname), statf, "./")
+	//		if err == nil {
+	//			deviceFiles = slices.Insert(deviceFiles, 0, file)
+	//		}
+	//	}
+	//}
+	//
+	//if streams.IndexOf(deviceFiles, func(file types.DeviceFile) bool {
+	//	return file.Name == "../"
+	//}) == -1 {
+	//	statf2, err := s.Statf("%A %h %U %G %b %Y %n", filepath.Dir(dirname))
+	//	if err == nil {
+	//		file, err := statsParser.Parse(filepath.Dir(filepath.Dir(dirname)), statf2, "../")
+	//		if err == nil {
+	//			if len(deviceFiles) > 1 {
+	//				deviceFiles = slices.Insert(deviceFiles, 1, file)
+	//			} else if len(deviceFiles) == 1 {
+	//				deviceFiles = append(deviceFiles, file)
+	//			}
+	//		}
+	//	}
+	//}
+
 	return deviceFiles, nil
 }
 

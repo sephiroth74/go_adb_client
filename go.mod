@@ -8,8 +8,9 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/reactivex/rxgo/v2 v2.5.0
 	github.com/rs/zerolog v1.28.0
-	github.com/sephiroth74/go_streams v1.0.5
+	github.com/sephiroth74/go_streams v1.0.6
 	github.com/stretchr/testify v1.8.1
+	golang.org/x/exp v0.0.0-20230105202349-8879d0199aa3
 	golang.org/x/sys v0.3.0
 	pkg.re/essentialkaos/ek.v12 v12.41.0+incompatible
 )
@@ -25,7 +26,6 @@ require (
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/teivah/onecontext v1.3.0 // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
-	golang.org/x/tools v0.1.12 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	pkg.re/essentialkaos/check.v1 v1.2.0 // indirect
