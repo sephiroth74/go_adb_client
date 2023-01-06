@@ -515,6 +515,12 @@ func TestShellSetProp(t *testing.T) {
 
 	ok = shell.SetProp("dalvik.vm.heapsize", "512m")
 	assert.True(t, ok)
+
+	ok = shell.SetProp("debug.hwui.overdraw", "")
+	assert.True(t, ok)
+
+	prop = shell.GetProp("debug.hwui.overdraw")
+	assert.Equal(t, "", *prop)
 }
 
 func TestWriteScreenCap(t *testing.T) {

@@ -122,11 +122,21 @@ func (s Shell) GetProps() (*properties.Properties, error) {
 }
 
 func (s Shell) SetProp(key string, value string) bool {
-	result, err := s.ExecuteWithTimeout("setprop", constants.DEFAULT_TIMEOUT, key, value)
+	newvalue := value
+	if newvalue == "" {
+		newvalue = "\"\""
+	}
+
+	result, err := s.ExecuteWithTimeout("setprop", constants.DEFAULT_TIMEOUT, key, newvalue)
 	if err != nil {
 		return false
 	}
 	return result.IsOk()
+}
+
+// ClearProp set the given property key to an empty value.
+func (s Shell) ClearProp(key string) bool {
+	return s.SetProp(key, "")
 }
 
 func (s Shell) Exists(filename string) bool {
