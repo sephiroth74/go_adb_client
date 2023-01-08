@@ -63,8 +63,8 @@ func (s Shell) Which(command string) (transport.Result, error) {
 	return s.ExecuteWithTimeout("which", 0, command)
 }
 
-// GetProp ExecuteWithTimeout the command "adb shell getprop key" and returns its value
-// if found, nil otherwise
+// GetProp ExecuteWithTimeout the command "adb shell getprop key" and returns its value if found, nil otherwise
+// Deprecated use GetPropValue instead
 func (s Shell) GetProp(key string) *string {
 	result, err := s.ExecuteWithTimeout("getprop", 0, key)
 	if err != nil {
@@ -76,6 +76,21 @@ func (s Shell) GetProp(key string) *string {
 		return &trim
 	} else {
 		return nil
+	}
+}
+
+// GetPropValue return the value of the given property key
+func (s Shell) GetPropValue(key string) (string, error) {
+	result, err := s.ExecuteWithTimeout("getprop", 0, key)
+	if err != nil {
+		return "", err
+	}
+
+	if result.IsOk() {
+		trim := strings.TrimSpace(result.Output())
+		return trim, nil
+	} else {
+		return "", result.NewError()
 	}
 }
 
