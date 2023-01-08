@@ -37,8 +37,7 @@ import (
 	"github.com/sephiroth74/go_adb_client/types"
 )
 
-var device_ip1 = net.IPv4(192, 168, 1, 105)
-var device_ip2 = net.IPv4(192, 168, 1, 3)
+var device_ip2 = net.IPv4(192, 168, 1, 110)
 var device_ip = device_ip2
 
 var local_apk = ""
@@ -1051,5 +1050,59 @@ func TestLogcat(t *testing.T) {
 
 	for _, line := range result.OutputLines() {
 		logging.Log.Debug().Msgf(line)
+	}
+}
+
+func TestListDumpsys(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	result, err := client.Shell.ListDumpSys()
+	assert.Nil(t, err)
+	assert.True(t, len(result) > 0)
+
+	for index, line := range result {
+		logging.Log.Debug().Msgf("%d = %s", index, line)
+	}
+}
+
+func TestDumpsys(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	result, err := client.Shell.DumpSys("bluetooth_manager")
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+	assert.True(t, len(result.OutputLines()) > 0)
+
+	//logging.Log.Warn().Msg(result.Output())
+
+	parser := types.DumpsysParser{Lines: result.OutputLines()}
+	sections := parser.FindSections()
+
+	for _, line := range sections {
+		fmt.Println(line)
+	}
+
+	fmt.Println("")
+	fmt.Println("")
+
+	section := parser.FindSection("AdapterProperties")
+	assert.NotNil(t, section)
+
+	fmt.Println("AdapterProperties:")
+	for _, line := range section.Lines {
+		fmt.Println(line)
+	}
+
+	fmt.Println("")
+	fmt.Println("")
+
+	section = parser.FindSection("Bluetooth Status")
+	assert.NotNil(t, section)
+
+	fmt.Println("Bluetooth Status:")
+	for _, line := range section.Lines {
+		fmt.Println(line)
 	}
 }
