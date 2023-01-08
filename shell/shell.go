@@ -424,6 +424,26 @@ func (s Shell) DeleteSetting(key string, namespace types.SettingsNamespace) erro
 	return nil
 }
 
+// DumpSys is a tool that runs on Android devices and provides information about system services.
+// For a complete list of services available use ListDumpSys
+func (s Shell) DumpSys(name string) (transport.Result, error) {
+	return s.Execute("dumpsys", name)
+}
+
+// ListDumpSys return the complete list of system services that can be used with dumpsys
+func (s Shell) ListDumpSys() ([]string, error) {
+	result, err := s.Execute("dumpsys", "-l")
+	var emptylist []string
+	if err != nil {
+		return emptylist, err
+	}
+	if !result.IsOk() {
+		return emptylist, result.NewError()
+	}
+
+	return result.OutputLines(), nil
+}
+
 //
 
 func parseEvents(text string) []types.Pair[string, string] {
