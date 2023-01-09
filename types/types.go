@@ -135,16 +135,17 @@ func NewMdnsDevice(name string, ctype string, addr *string) (*MdnsDevice, error)
 type UserId string
 
 type Intent struct {
-	Action    string
-	Data      string
-	MimeType  string
-	Category  string
-	Component string
-	Package   string
-	Flags     int32
-	Extra     Extras
-	UserId    UserId
-	Wait      bool
+	Action             string
+	Data               string
+	MimeType           string
+	Category           string
+	Component          string
+	Package            string
+	ReceiverForeground bool
+	Flags              int32
+	Extra              Extras
+	UserId             UserId
+	Wait               bool
 }
 
 type Extras struct {
@@ -190,6 +191,10 @@ func (i Intent) String() string {
 
 	if i.Package != "" {
 		sb = append(sb, fmt.Sprintf("-p %s", i.Package))
+	}
+
+	if i.ReceiverForeground {
+		sb = append(sb, "--receiver-foreground")
 	}
 
 	if !reflect.DeepEqual(Extras{}, i.Extra) {

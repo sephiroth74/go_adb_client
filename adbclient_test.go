@@ -37,7 +37,7 @@ import (
 	"github.com/sephiroth74/go_adb_client/types"
 )
 
-var device_ip2 = net.IPv4(192, 168, 1, 110)
+var device_ip2 = net.IPv4(192, 168, 1, 122)
 var device_ip = device_ip2
 
 var local_apk = ""
@@ -1105,4 +1105,21 @@ func TestDumpsys(t *testing.T) {
 	for _, line := range section.Lines {
 		fmt.Println(line)
 	}
+}
+
+func TestFactoryReset(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+	assert.True(t, client.MustRoot())
+
+	intent := types.NewIntent()
+	intent.Action = "android.intent.action.FACTORY_RESET"
+	intent.Package = "android"
+	intent.ReceiverForeground = true
+	intent.Wait = true
+
+	device := adbclient.NewDevice(client)
+	result, err := device.ActivityManager().Broadcast(intent)
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
 }
