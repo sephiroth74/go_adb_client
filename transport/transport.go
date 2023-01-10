@@ -21,9 +21,10 @@ import (
 )
 
 type Result struct {
-	ExitCode int
-	Stdout   []byte
-	Stderr   []byte
+	ExitStatus syscall.WaitStatus
+	ExitCode   int
+	Stdout     []byte
+	Stderr     []byte
 }
 
 func (r Result) IsInterrupted() bool {
@@ -51,7 +52,7 @@ func (r Result) Error() string {
 }
 
 func (r Result) ToString() string {
-	return fmt.Sprintf("Result(isOk=`%t`, Stdout=`%s`, Stderr=`%s`)", r.IsOk(), strings.TrimSpace(string(r.Stdout)), strings.TrimSpace(string(r.Stderr)))
+	return fmt.Sprintf("Result(isOk=`%t`, Stdout=`%s`, Stderr=`%s`, ExitStatus=%d, ExitCode=%d)", r.IsOk(), strings.TrimSpace(string(r.Stdout)), strings.TrimSpace(string(r.Stderr)), r.ExitStatus.ExitStatus(), r.ExitCode)
 }
 
 func (r Result) String() string {
@@ -85,12 +86,20 @@ type TransportCommand struct {
 }
 
 type ProcessBuilder struct {
-	serial  string
-	timeout time.Duration
-	command *TransportCommand
-	verbose bool
-	stdout  *io.Writer
-	stderr  *io.Writer
+	serial       string
+	timeout      time.Duration
+	command      *TransportCommand
+	verbose      bool
+	stdout       *io.Writer
+	stderr       *io.Writer
+	stdpipe      *io.PipeWriter
+	pipe         *Command
+	closeChannel *chan os.Signal
+}
+
+type Command struct {
+	Command string
+	Args    []string
 }
 
 func NewProcessBuilder() *ProcessBuilder {
@@ -147,8 +156,21 @@ func (p *ProcessBuilder) WithPath(path *string) *ProcessBuilder {
 	return p
 }
 
+func (p *ProcessBuilder) WithCancel(closeChannel chan os.Signal) *ProcessBuilder {
+	p.closeChannel = &closeChannel
+	return p
+}
+
 func (p *ProcessBuilder) WithCommand(command string) *ProcessBuilder {
 	p.command.command = &command
+	return p
+}
+
+func (p *ProcessBuilder) WithPipe(command string, args ...string) *ProcessBuilder {
+	p.pipe = &Command{
+		Command: command,
+		Args:    args,
+	}
 	return p
 }
 
@@ -181,7 +203,9 @@ func (p *ProcessBuilder) start(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exe
 		cmd = exec.Command(*p.command.path, finalArgs...)
 	}
 
-	if p.stdout != nil {
+	if p.stdpipe != nil {
+		cmd.Stdout = p.stdpipe
+	} else if p.stdout != nil {
 		cmd.Stdout = *p.stdout
 	} else if stdout != nil {
 		cmd.Stdout = stdout
@@ -200,7 +224,21 @@ func (p *ProcessBuilder) start(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exe
 }
 
 func (p *ProcessBuilder) Invoke() (Result, error) {
+	var grep *exec.Cmd = nil
+	var pipeReader *io.PipeReader = nil
+	var pipeWriter *io.PipeWriter = nil
 	var outBuf, errBuf bytes.Buffer
+
+	if p.pipe != nil {
+		grep = exec.Command(p.pipe.Command, p.pipe.Args...)
+		pipeReader, pipeWriter = io.Pipe()
+		defer pipeReader.Close()
+		defer pipeWriter.Close()
+		p.stdpipe = pipeWriter
+		grep.Stdin = pipeReader
+		grep.Stdout = &outBuf
+	}
+
 	cmd, cancel, err := p.start(&outBuf, &errBuf)
 	defer cancel()
 
@@ -208,16 +246,50 @@ func (p *ProcessBuilder) Invoke() (Result, error) {
 		return Result{}, err
 	}
 
+	if grep != nil {
+		if err := grep.Start(); err != nil {
+			return Result{}, err
+		}
+	}
+
+	if p.closeChannel != nil {
+		go func() {
+			<-*p.closeChannel
+			logging.Log.Warn().Msg("Kill Process!")
+			cmd.Process.Kill()
+			if grep != nil {
+				grep.Process.Kill()
+			}
+		}()
+	}
+
 	if err := cmd.Wait(); err != nil {
 		return Result{}, err
 	}
 
-	exitCode := cmd.ProcessState.ExitCode()
+	if grep != nil {
+		pipeWriter.Close()
+		if err := grep.Wait(); err != nil {
+			return Result{}, err
+		}
+		io.Copy(os.Stdout, &outBuf)
+	}
+
+	status := cmd.ProcessState.Sys().(syscall.WaitStatus)
+	exitStatus := status
+	signaled := status.Signaled()
+	signal := status.Signal()
+	exitCode := int(exitStatus)
+
+	if signaled {
+		logging.Log.Warn().Msgf("Signal: %s", signal)
+	}
 
 	var result = Result{
-		ExitCode: exitCode,
-		Stdout:   outBuf.Bytes(),
-		Stderr:   errBuf.Bytes(),
+		ExitStatus: exitStatus,
+		ExitCode:   exitCode,
+		Stdout:     outBuf.Bytes(),
+		Stderr:     errBuf.Bytes(),
 	}
 	if err != nil {
 		return result, err

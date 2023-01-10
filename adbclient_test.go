@@ -5,17 +5,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/sephiroth74/go_adb_client/scanner"
-	"github.com/sephiroth74/go_adb_client/shell"
-	"github.com/sephiroth74/go_adb_client/transport"
-	streams "github.com/sephiroth74/go_streams"
-	"golang.org/x/sys/unix"
 	"io"
 	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"pkg.re/essentialkaos/ek.v12/path"
 	"runtime"
 	"strings"
 	"sync"
@@ -23,12 +17,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sephiroth74/go_adb_client/scanner"
+	"github.com/sephiroth74/go_adb_client/shell"
+	"github.com/sephiroth74/go_adb_client/transport"
+	streams "github.com/sephiroth74/go_streams"
+	"golang.org/x/sys/unix"
+	"pkg.re/essentialkaos/ek.v12/path"
+
 	"github.com/alecthomas/repr"
 	"github.com/magiconair/properties"
 	"github.com/reactivex/rxgo/v2"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/sephiroth74/go_adb_client"
+	adbclient "github.com/sephiroth74/go_adb_client"
 	"github.com/sephiroth74/go_adb_client/connection"
 	"github.com/sephiroth74/go_adb_client/input"
 	"github.com/sephiroth74/go_adb_client/logging"
@@ -1122,4 +1123,42 @@ func TestFactoryReset(t *testing.T) {
 	result, err := device.ActivityManager().Broadcast(intent)
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
+}
+
+func TestPipe(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+	assert.True(t, client.MustRoot())
+
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	result, err := client.Shell.NewProcess().
+		WithArgs("while true; do screenrecord --output-format=h264 -; done").
+		WithPipe("ffplay", "-framerate", "60", "-probesize", "32", "-sync", "video", "-").
+		WithCancel(c).
+		Invoke()
+
+
+	if err != nil {
+		println("error: ")
+		println(err.Error())
+		println(result.ExitStatus.Stopped())
+		println(result.ExitStatus.Exited())
+		println(result.ExitStatus.Signaled())
+	}
+
+	
+
+	println(result.String())
+
+	if !result.IsOk() && !result.IsInterrupted() {
+		println("result error:")
+		println(result.NewError().Error())
+		return
+	}
+
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+	println(result.Output())
 }
