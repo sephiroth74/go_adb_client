@@ -263,37 +263,30 @@ func (p *ProcessBuilder) Invoke() (Result, error) {
 		}()
 	}
 
-	if err := cmd.Wait(); err != nil {
-		return Result{}, err
+	err = cmd.Wait()
+	status := cmd.ProcessState.Sys().(syscall.WaitStatus)
+	exitStatus := status
+	exitCode := int(exitStatus)
+
+	var result = Result{
+		ExitStatus: exitStatus,
+		ExitCode:   exitCode,
+	}
+
+	if err != nil {
+		return result, err
 	}
 
 	if grep != nil {
 		pipeWriter.Close()
 		if err := grep.Wait(); err != nil {
-			return Result{}, err
+			return result, err
 		}
 		io.Copy(os.Stdout, &outBuf)
 	}
 
-	status := cmd.ProcessState.Sys().(syscall.WaitStatus)
-	exitStatus := status
-	signaled := status.Signaled()
-	signal := status.Signal()
-	exitCode := int(exitStatus)
-
-	if signaled {
-		logging.Log.Warn().Msgf("Signal: %s", signal)
-	}
-
-	var result = Result{
-		ExitStatus: exitStatus,
-		ExitCode:   exitCode,
-		Stdout:     outBuf.Bytes(),
-		Stderr:     errBuf.Bytes(),
-	}
-	if err != nil {
-		return result, err
-	}
+	result.Stdout = outBuf.Bytes()
+	result.Stderr = errBuf.Bytes()
 	return result, nil
 }
 
@@ -319,11 +312,9 @@ func (p *ProcessBuilder) InvokeWithCancel(closeChannel chan os.Signal) (Result, 
 	status := cmd.ProcessState.Sys().(syscall.WaitStatus)
 	exitStatus := status
 	signaled := status.Signaled()
-	signal := status.Signal()
 	exitCode := cmd.ProcessState.ExitCode()
 
 	if signaled {
-		logging.Log.Warn().Msgf("Signal: %s", signal)
 		exitCode = int(exitStatus)
 	} else {
 		exitCode = int(exitStatus)
