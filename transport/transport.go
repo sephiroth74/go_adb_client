@@ -1,10 +1,11 @@
 package transport
 
 import (
-	"github.com/pkg/errors"
 	"io"
 	"os"
 	"syscall"
+
+	"github.com/pkg/errors"
 
 	"github.com/sephiroth74/go_adb_client/logging"
 	"github.com/sephiroth74/go_adb_client/types"
@@ -174,7 +175,12 @@ func (p *ProcessBuilder) WithPipe(command string, args ...string) *ProcessBuilde
 	return p
 }
 
-func (p *ProcessBuilder) start(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exec.Cmd, context.CancelFunc, error) {
+func (p *ProcessBuilder) Command() (*exec.Cmd, context.CancelFunc, error) {
+	cmd, cancel, err := p.prepare(nil, nil)
+	return cmd, cancel, err
+}
+
+func (p *ProcessBuilder) prepare(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exec.Cmd, context.CancelFunc, error) {
 	var adb = filepath.Base(*p.command.path)
 	var finalArgs []string
 
@@ -199,7 +205,7 @@ func (p *ProcessBuilder) start(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exe
 		if p.verbose {
 			logging.Log.Debug().Msgf("Executing `%s %s`", adb, strings.Join(finalArgs, " "))
 		}
-		ctx, cancel = context.WithCancel(context.Background())
+		_, cancel = context.WithCancel(context.Background())
 		cmd = exec.Command(*p.command.path, finalArgs...)
 	}
 
@@ -217,9 +223,6 @@ func (p *ProcessBuilder) start(stdout *bytes.Buffer, stderr *bytes.Buffer) (*exe
 		cmd.Stderr = stderr
 	}
 
-	if err := cmd.Start(); err != nil {
-		return cmd, cancel, err
-	}
 	return cmd, cancel, nil
 }
 
@@ -239,7 +242,12 @@ func (p *ProcessBuilder) Invoke() (Result, error) {
 		grep.Stdout = &outBuf
 	}
 
-	cmd, cancel, err := p.start(&outBuf, &errBuf)
+	cmd, cancel, err := p.prepare(&outBuf, &errBuf)
+
+	if err := cmd.Start(); err != nil {
+		return Result{}, err
+	}
+
 	defer cancel()
 
 	if err != nil {
@@ -287,47 +295,5 @@ func (p *ProcessBuilder) Invoke() (Result, error) {
 
 	result.Stdout = outBuf.Bytes()
 	result.Stderr = errBuf.Bytes()
-	return result, nil
-}
-
-func (p *ProcessBuilder) InvokeWithCancel(closeChannel chan os.Signal) (Result, error) {
-	var outBuf, errBuf bytes.Buffer
-	cmd, cancel, err := p.start(&outBuf, &errBuf)
-	defer cancel()
-
-	if err != nil {
-		return Result{}, err
-	}
-
-	go func() {
-		<-closeChannel
-		logging.Log.Warn().Msg("Kill Process!")
-		err := cmd.Process.Kill()
-		if err != nil {
-			return
-		}
-	}()
-
-	err = cmd.Wait()
-	status := cmd.ProcessState.Sys().(syscall.WaitStatus)
-	exitStatus := status
-	signaled := status.Signaled()
-	exitCode := cmd.ProcessState.ExitCode()
-
-	if signaled {
-		exitCode = int(exitStatus)
-	} else {
-		exitCode = int(exitStatus)
-	}
-
-	var result = Result{
-		ExitCode: exitCode,
-		Stdout:   outBuf.Bytes(),
-		Stderr:   errBuf.Bytes(),
-	}
-
-	if err != nil {
-		return result, err
-	}
 	return result, nil
 }

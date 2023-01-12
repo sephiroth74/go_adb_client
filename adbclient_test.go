@@ -38,7 +38,7 @@ import (
 	"github.com/sephiroth74/go_adb_client/types"
 )
 
-var device_ip2 = net.IPv4(192, 168, 1, 122)
+var device_ip2 = net.IPv4(192, 168, 1, 101)
 var device_ip = device_ip2
 
 var local_apk = ""
@@ -1007,7 +1007,6 @@ func TestScan(t *testing.T) {
 func TestLogcat(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
-
 	since := time.Now().Add(-3 * time.Hour)
 
 	result, err := client.Logcat(types.LogcatOptions{
@@ -1018,40 +1017,66 @@ func TestLogcat(t *testing.T) {
 		Format:   "",
 		Since:    &since,
 		Pids:     nil,
-		Timeout:  0 * time.Second,
+		Timeout:  10 * time.Second,
 	})
-
-	//
-	//result, err := client.Logcat(adbclient.LogcatOptions{
-	//	Expr:     "",
-	//	Dump:     true,
-	//	Filename: "",
-	//	Tags: []adbclient.LogcatTag{
-	//		{
-	//			Name:  "PropertiesReceiver",
-	//			Level: adbclient.LogcatDebug,
-	//		},
-	//		{
-	//			Name:  "MY_CUSTOM_TAG",
-	//			Level: adbclient.LogcatVerbose,
-	//		},
-	//	},
-	//	Format: "tag",
-	//	Since:  "",
-	//	Pids:   nil,
-	//})
 
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
-	if err != nil {
-		logging.Log.Warn().Msgf("Error: %s", err.Error())
-		logging.Log.Warn().Msgf(result.Error())
-	}
-
 	for _, line := range result.OutputLines() {
 		logging.Log.Debug().Msgf(line)
 	}
+}
+
+func TestLogcatPipe(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	cmd, cancel, err := client.LogcatCommand(types.LogcatOptions{
+		Tags:    nil,
+		Timeout: 10 * time.Second,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer cancel()
+
+	pipe, err := cmd.StdoutPipe()
+	if err != nil {
+		panic(err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		panic(err)
+	}
+
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		logging.Log.Warn().Msg("Kill Process!")
+		cmd.Process.Kill()
+	}()
+
+	scanner := bufio.NewScanner(pipe)
+	for scanner.Scan() {
+		text := scanner.Text()
+		if strings.HasSuffix(text, "clear package: error") {
+			fmt.Println("******** OK DONE!!!! **************")
+			// cancel()
+			break
+		}
+		fmt.Println(text)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println("ok done")
 }
 
 func TestListDumpsys(t *testing.T) {
@@ -1139,7 +1164,6 @@ func TestPipe(t *testing.T) {
 		WithCancel(c).
 		Invoke()
 
-
 	if err != nil {
 		println("error: ")
 		println(err.Error())
@@ -1147,8 +1171,6 @@ func TestPipe(t *testing.T) {
 		println(result.ExitStatus.Exited())
 		println(result.ExitStatus.Signaled())
 	}
-
-	
 
 	println(result.String())
 

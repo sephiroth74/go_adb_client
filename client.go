@@ -2,12 +2,15 @@ package adbclient
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
-	streams "github.com/sephiroth74/go_streams"
 	"io"
 	"net"
+	"os/exec"
 	"time"
+
+	streams "github.com/sephiroth74/go_streams"
 
 	"github.com/reactivex/rxgo/v2"
 	"github.com/sephiroth74/go_adb_client/connection"
@@ -257,6 +260,39 @@ func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
 	}
 
 	return pb.Invoke()
+}
+
+
+func (c Client) LogcatCommand(options types.LogcatOptions) (*exec.Cmd, context.CancelFunc, error) {
+	var args []string
+
+	if options.Expr != "" {
+		args = append(args, "-e", options.Expr)
+	}
+
+	if options.Format != "" {
+		args = append(args, "-v", options.Format)
+	}
+
+	if len(options.Pids) > 0 {
+		args = append(args, "--pid")
+		args = append(args, options.Pids...)
+	}
+
+	if len(options.Tags) > 0 {
+		tags := streams.Map(options.Tags, func(tag types.LogcatTag) string {
+			return tag.String()
+		})
+		args = append(args, tags...)
+		args = append(args, "*:S")
+	}
+
+	pb := c.NewProcess().WithArgs(args...).WithCommand("logcat")
+
+	if options.Timeout > 0 {
+		pb.WithTimeout(options.Timeout)
+	}
+	return pb.Command()
 }
 
 //

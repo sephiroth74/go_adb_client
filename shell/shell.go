@@ -307,8 +307,9 @@ func (s Shell) ScreenRecord(options ScreenRecordOptions, c chan os.Signal, filen
 
 	args = append(args, filename)
 
-	pb.WithArgs(args...)
-	return pb.InvokeWithCancel(c)
+	pb.WithArgs(args...).WithCancel(c)
+	
+	return pb.Invoke()
 }
 
 func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
