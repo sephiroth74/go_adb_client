@@ -57,6 +57,11 @@ func (d Device) WriteScreenCap(output *os.File) (transport.Result, error) {
 	return pb.Invoke()
 }
 
+// PowerOffOn send the power button input key
+func (d Device) PowerOffOn() (bool, error) {
+	return d.Power()
+}
+
 // PowerOff Power off the device (turn the screen off).
 // If the screen is already off it returns false, true otherwise
 func (d Device) PowerOff() (bool, error) {
