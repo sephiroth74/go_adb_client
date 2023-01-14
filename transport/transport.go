@@ -279,6 +279,8 @@ func (p *ProcessBuilder) Invoke() (Result, error) {
 	var result = Result{
 		ExitStatus: exitStatus,
 		ExitCode:   exitCode,
+		Stdout:     outBuf.Bytes(),
+		Stderr:     errBuf.Bytes(),
 	}
 
 	if err != nil {
@@ -292,8 +294,5 @@ func (p *ProcessBuilder) Invoke() (Result, error) {
 		}
 		io.Copy(os.Stdout, &outBuf)
 	}
-
-	result.Stdout = outBuf.Bytes()
-	result.Stderr = errBuf.Bytes()
 	return result, nil
 }

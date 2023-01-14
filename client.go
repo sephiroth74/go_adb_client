@@ -207,6 +207,11 @@ func (c Client) Uninstall(packageName string) (transport.Result, error) {
 	return c.Conn.Uninstall(c.Address.GetSerialAddress(), packageName)
 }
 
+func (c Client) ClearLogcat() error {
+	_, err := c.NewProcess().WithCommand("logcat").WithArgs("-b", "all", "-c").Invoke()
+	return err
+}
+
 func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
 	var args []string
 
@@ -244,7 +249,7 @@ func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
 	}
 
 	if options.Since != nil {
-		args = append(args, "-t")
+		args = append(args, "-T")
 		args = append(args, options.Since.Format("01-02 15:04:05.000"))
 	}
 
@@ -261,7 +266,6 @@ func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
 
 	return pb.Invoke()
 }
-
 
 func (c Client) LogcatCommand(options types.LogcatOptions) (*exec.Cmd, context.CancelFunc, error) {
 	var args []string
@@ -285,6 +289,11 @@ func (c Client) LogcatCommand(options types.LogcatOptions) (*exec.Cmd, context.C
 		})
 		args = append(args, tags...)
 		args = append(args, "*:S")
+	}
+
+	if options.Since != nil {
+		args = append(args, "-T")
+		args = append(args, options.Since.Format("01-02 15:04:05.000"))
 	}
 
 	pb := c.NewProcess().WithArgs(args...).WithCommand("logcat")
