@@ -38,7 +38,7 @@ import (
 	"github.com/sephiroth74/go_adb_client/types"
 )
 
-var device_ip2 = net.IPv4(192, 168, 1, 101)
+var device_ip2 = net.IPv4(192, 168, 1, 17)
 var device_ip = device_ip2
 
 var local_apk = ""
@@ -1033,7 +1033,13 @@ func TestLogcatPipe(t *testing.T) {
 	AssertClientConnected(t, client)
 
 	cmd, cancel, err := client.LogcatCommand(types.LogcatOptions{
-		Tags:    nil,
+		Format: "pid",
+		Tags: []types.LogcatTag{
+			{
+				Name:  "MY_CUSTOM_TAG",
+				Level: types.LogcatVerbose,
+			},
+		},
 		Timeout: 10 * time.Second,
 	})
 
@@ -1064,12 +1070,14 @@ func TestLogcatPipe(t *testing.T) {
 	scanner := bufio.NewScanner(pipe)
 	for scanner.Scan() {
 		text := scanner.Text()
-		if strings.HasSuffix(text, "clear package: error") {
+
+		f := regexp.MustCompile(`clear package: (done|error)$`)
+		match := f.FindAllString(text, -1)
+		if len(match) > 0 {
+			fmt.Println(text)
 			fmt.Println("******** OK DONE!!!! **************")
-			// cancel()
 			break
 		}
-		fmt.Println(text)
 	}
 
 	if err := cmd.Wait(); err != nil {
@@ -1077,6 +1085,14 @@ func TestLogcatPipe(t *testing.T) {
 	}
 
 	fmt.Println("ok done")
+}
+
+func TestClearLogcat(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	err := client.ClearLogcat()
+	assert.Nil(t, err)
 }
 
 func TestListDumpsys(t *testing.T) {
