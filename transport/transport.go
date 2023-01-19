@@ -22,10 +22,9 @@ import (
 )
 
 type Result struct {
-	ExitStatus syscall.WaitStatus
-	ExitCode   int
-	Stdout     []byte
-	Stderr     []byte
+	ExitCode int
+	Stdout   []byte
+	Stderr   []byte
 }
 
 func (r Result) IsInterrupted() bool {
@@ -53,7 +52,7 @@ func (r Result) Error() string {
 }
 
 func (r Result) ToString() string {
-	return fmt.Sprintf("Result(isOk=`%t`, Stdout=`%s`, Stderr=`%s`, ExitStatus=%d, ExitCode=%d)", r.IsOk(), strings.TrimSpace(string(r.Stdout)), strings.TrimSpace(string(r.Stderr)), r.ExitStatus.ExitStatus(), r.ExitCode)
+	return fmt.Sprintf("Result(isOk=`%t`, Stdout=`%s`, Stderr=`%s`, ExitCode=%d)", r.IsOk(), strings.TrimSpace(string(r.Stdout)), strings.TrimSpace(string(r.Stderr)), r.ExitCode)
 }
 
 func (r Result) String() string {
@@ -244,6 +243,7 @@ func (p *ProcessBuilder) Invoke() (Result, error) {
 
 	cmd, cancel, err := p.prepare(&outBuf, &errBuf)
 
+	println("starting cmd...")
 	if err := cmd.Start(); err != nil {
 		return Result{}, err
 	}
@@ -255,6 +255,7 @@ func (p *ProcessBuilder) Invoke() (Result, error) {
 	}
 
 	if grep != nil {
+		println("starting grep...")
 		if err := grep.Start(); err != nil {
 			return Result{}, err
 		}
@@ -271,16 +272,16 @@ func (p *ProcessBuilder) Invoke() (Result, error) {
 		}()
 	}
 
+	println("waiting for cmd...")
 	err = cmd.Wait()
-	status := cmd.ProcessState.Sys().(syscall.WaitStatus)
-	exitStatus := status
-	exitCode := int(exitStatus)
+	// status := cmd.ProcessState.Sys().(syscall.WaitStatus)
+	// exitStatus := status
+	exitCode := cmd.ProcessState.ExitCode()
 
 	var result = Result{
-		ExitStatus: exitStatus,
-		ExitCode:   exitCode,
-		Stdout:     outBuf.Bytes(),
-		Stderr:     errBuf.Bytes(),
+		ExitCode: exitCode,
+		Stdout:   outBuf.Bytes(),
+		Stderr:   errBuf.Bytes(),
 	}
 
 	if err != nil {
@@ -288,7 +289,9 @@ func (p *ProcessBuilder) Invoke() (Result, error) {
 	}
 
 	if grep != nil {
+		println("closing pipeWriter...")
 		pipeWriter.Close()
+		println("waiting on grep...")
 		if err := grep.Wait(); err != nil {
 			return result, err
 		}

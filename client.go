@@ -16,6 +16,7 @@ import (
 	"github.com/sephiroth74/go_adb_client/connection"
 	"github.com/sephiroth74/go_adb_client/events"
 	"github.com/sephiroth74/go_adb_client/mdns"
+	"github.com/sephiroth74/go_adb_client/process"
 	"github.com/sephiroth74/go_adb_client/shell"
 	"github.com/sephiroth74/go_adb_client/transport"
 	"github.com/sephiroth74/go_adb_client/types"
@@ -64,27 +65,29 @@ func WaitAndReturn(result *transport.Result, err error, timeout time.Duration) (
 	return *result, err
 }
 
-func (c Client) Connect(timeout time.Duration) (transport.Result, error) {
-	conn, err := c.IsConnected()
-	if err == nil && conn {
-		return transport.OkResult("Already Connected"), nil
+func WaitAndReturnOutput(result *process.OutputResult, err error, timeout time.Duration) (process.OutputResult, error) {
+	if err != nil {
+		return *result, err
+	}
+	time.Sleep(timeout)
+	return *result, err
+}
+
+func (c Client) Connect(timeout time.Duration) (process.OutputResult, error) {
+	if conn := c.GetIsConnected(); conn {
+		return process.NewSuccessOutputResult("Already Connected"), nil
 	}
 	result, err := c.Conn.Connect(c.Address.GetSerialAddress(), timeout)
 
 	if err != nil {
-		return transport.ErrorResult(result.Output()), err
+		return result, err
 	}
 
-	conn, err = c.IsConnected()
-	if err != nil {
-		return transport.ErrorResult("Unable to connect"), err
-	}
-
-	if conn {
-		defer c.Dispatch(events.Connected, c.Address)
-		return transport.OkResult(fmt.Sprintf("connected to %s", c.Address.String())), nil
+	if conn := c.GetIsConnected(); !conn {
+		return process.NewErrorOutputResult(fmt.Sprintf("Unable to connect to %s", c.Address.String())), nil
 	} else {
-		return transport.ErrorResult(fmt.Sprintf("Unable to connect to %s", c.Address.String())), nil
+		defer c.Dispatch(events.Connected, c.Address)
+		return process.NewSuccessOutputResult(fmt.Sprintf("connected to %s", c.Address.String())), nil
 	}
 }
 
@@ -95,15 +98,17 @@ func (c Client) Reconnect(timeout time.Duration) (transport.Result, error) {
 func (c Client) IsConnected() (bool, error) {
 	result, err := c.Conn.GetState(c.Address.GetSerialAddress())
 	if err != nil {
+		if result.HasError() {
+			return false, nil
+		}
 		return false, err
 	}
 	return result.IsOk(), nil
 }
 
-func (c Client) Disconnect() (transport.Result, error) {
-	connected, err := c.IsConnected()
-	if err == nil && !connected {
-		return transport.OkResult(""), nil
+func (c Client) Disconnect() (process.OutputResult, error) {
+	if conn := c.GetIsConnected(); !conn {
+		return process.NewSuccessOutputResult("already disconnected"), nil
 	}
 
 	result, err := c.Conn.Disconnect(c.Address.GetSerialAddress())
@@ -115,53 +120,49 @@ func (c Client) Disconnect() (transport.Result, error) {
 	return result, err
 }
 
-func (c Client) DisconnectAll() (transport.Result, error) {
+func (c Client) DisconnectAll() (process.OutputResult, error) {
 	return c.Conn.DisconnectAll()
 }
 
-func (c Client) WaitForDevice() (transport.Result, error) {
-	return c.Conn.WaitForDevice(c.Address.GetSerialAddress(), 0)
+func (c Client) WaitForDevice(timeout time.Duration) (process.OutputResult, error) {
+	return c.Conn.WaitForDevice(c.Address.GetSerialAddress(), timeout)
 }
 
-func (c Client) WaitForDeviceWithTimeout(timeout time.Duration) (transport.Result, error) {
-	return c.Conn.WaitForDeviceWithTimeout(c.Address.GetSerialAddress(), timeout)
-}
-
-func (c Client) Root() (transport.Result, error) {
+func (c Client) Root() (process.OutputResult, error) {
 	result, err := c.Conn.Root(c.Address.GetSerialAddress())
-	return WaitAndReturn(&result, err, time.Duration(1)*time.Second)
+	return WaitAndReturnOutput(&result, err, time.Duration(1)*time.Second)
 }
 
 func (c Client) IsRoot() (bool, error) {
 	return c.Conn.IsRoot(c.Address.GetSerialAddress())
 }
 
-func (c Client) UnRoot() (transport.Result, error) {
+func (c Client) UnRoot() (process.OutputResult, error) {
 	result, err := c.Conn.UnRoot(c.Address.GetSerialAddress())
-	return WaitAndReturn(&result, err, time.Duration(1)*time.Second)
+	return WaitAndReturnOutput(&result, err, time.Duration(1)*time.Second)
 }
 
 func (c Client) ListDevices() ([]*types.Device, error) {
 	return c.Conn.ListDevices()
 }
 
-func (c Client) Reboot() (transport.Result, error) {
+func (c Client) Reboot() (process.OutputResult, error) {
 	return c.Conn.Reboot(c.Address.GetSerialAddress())
 }
 
-func (c Client) Remount() (transport.Result, error) {
+func (c Client) Remount() (process.OutputResult, error) {
 	result, err := c.Conn.Remount(c.Address.GetSerialAddress())
-	return WaitAndReturn(&result, err, time.Duration(1)*time.Second)
+	return WaitAndReturnOutput(&result, err, time.Duration(1)*time.Second)
 }
 
-func (c Client) Mount(dir string) (transport.Result, error) {
+func (c Client) Mount(dir string) (process.OutputResult, error) {
 	result, err := c.Conn.Unmount(c.Address.GetSerialAddress(), dir)
-	return WaitAndReturn(&result, err, time.Duration(1)*time.Second)
+	return WaitAndReturnOutput(&result, err, time.Duration(1)*time.Second)
 }
 
-func (c Client) Unmount(dir string) (transport.Result, error) {
+func (c Client) Unmount(dir string) (process.OutputResult, error) {
 	result, err := c.Conn.Unmount(c.Address.GetSerialAddress(), dir)
-	return WaitAndReturn(&result, err, time.Duration(1)*time.Second)
+	return WaitAndReturnOutput(&result, err, time.Duration(1)*time.Second)
 }
 
 // BugReport ExecuteWithTimeout and return the result of the command 'adb bugreport'
@@ -173,14 +174,14 @@ func (c Client) BugReport(dst string) (transport.Result, error) {
 // Pull a file from the device.
 // src is the file to be pulled from the device.
 // dst is the destination filepath on the host.
-func (c Client) Pull(src string, dst string) (transport.Result, error) {
+func (c Client) Pull(src string, dst string) (process.OutputResult, error) {
 	return c.Conn.Pull(c.Address.GetSerialAddress(), src, dst)
 }
 
 // Push a file to the connected device.
 // src is the host file to be pushed.
 // dst is the target device where the file should be pushed to.
-func (c Client) Push(src string, dst string) (transport.Result, error) {
+func (c Client) Push(src string, dst string) (process.OutputResult, error) {
 	return c.Conn.Push(c.Address.GetSerialAddress(), src, dst)
 }
 

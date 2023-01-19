@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -36,9 +37,10 @@ import (
 	"github.com/sephiroth74/go_adb_client/mdns"
 	"github.com/sephiroth74/go_adb_client/packagemanager"
 	"github.com/sephiroth74/go_adb_client/types"
+	"gopkg.in/pipe.v2"
 )
 
-var device_ip2 = net.IPv4(192, 168, 1, 17)
+var device_ip2 = net.IPv4(192, 168, 1, 117)
 var device_ip = device_ip2
 
 var local_apk = ""
@@ -54,6 +56,30 @@ func AssertClientConnected(t *testing.T, client *adbclient.Client) {
 	result, err := client.Connect(5 * time.Second)
 	assert.Nil(t, err, "Error connecting to %s", client.Address.String())
 	assert.True(t, result.IsOk(), "Error: %s", result.Error())
+}
+
+func TestGetState(t *testing.T) {
+	var client = NewClient()
+	res, err := client.IsConnected()
+	assert.Nil(t, err)
+	assert.True(t, res)
+}
+
+func TestWithPipe(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	p1 := pipe.Exec("adb", "logcat")
+	p := pipe.Line(
+		p1,
+		pipe.Write(os.Stdout),
+	)
+
+	err := pipe.Run(p)
+	assert.Nil(t, err)
+
+	// var s = string(result)
+	// fmt.Println(s)
 }
 
 func TestBugReport(t *testing.T) {
@@ -152,7 +178,7 @@ func TestConnect(t *testing.T) {
 	var client = NewClient()
 
 	result, err := client.Connect(5 * time.Second)
-	logging.Log.Debug().Msgf("result=%s", result.ToString())
+	logging.Log.Debug().Msgf("result=%s", result.String())
 	assert.Nil(t, err)
 	assert.Equal(t, true, result.IsOk())
 
@@ -179,18 +205,14 @@ func TestWaitForDevice(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, true, result.IsOk())
 
-	result, err = client.WaitForDeviceWithTimeout(connection.WaitForDeviceTimeout)
+	result, err = client.WaitForDevice(1 * time.Minute)
 	assert.Nil(t, err)
-	println(result.ToString())
+	println(result.String())
 	assert.Equal(t, true, result.IsOk())
 
 	connected, err := client.IsConnected()
 	assert.Nil(t, err)
 	assert.Equal(t, true, connected)
-
-	is_root, err := client.IsRoot()
-	assert.Nil(t, err)
-	assert.True(t, is_root)
 
 	result, err = client.Disconnect()
 	assert.Nil(t, err)
@@ -225,7 +247,7 @@ func TestListDevices(t *testing.T) {
 
 	if err == nil {
 		for x := 0; x < len(list); x++ {
-			logging.Log.Debug().Msgf("Device: %#v\n", list[x])
+			logging.Log.Debug().Msgf("Device: %s\n", list[x].String())
 		}
 	}
 }
@@ -242,7 +264,7 @@ func TestReboot(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
-	result, err = client.WaitForDeviceWithTimeout(time.Duration(2) * time.Minute)
+	result, err = client.WaitForDevice(2 * time.Minute)
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
@@ -270,6 +292,7 @@ func TestRemount(t *testing.T) {
 	result, err = client.Remount()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
+	logging.Log.Debug().Msg(result.String())
 
 	result, err = client.Unmount("/system")
 	if err != nil {
@@ -277,6 +300,7 @@ func TestRemount(t *testing.T) {
 	}
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
+	logging.Log.Debug().Msg(result.String())
 }
 
 func TestGetVersion(t *testing.T) {
@@ -287,7 +311,7 @@ func TestGetVersion(t *testing.T) {
 	logging.Log.Debug().Msgf("adb version=%s", result)
 }
 
-func TestMdns(t *testing.T) {
+func TestMdnsServices(t *testing.T) {
 	var mdns = mdns.NewMdns(connection.NewConnection(true))
 	result, err := mdns.Check()
 	assert.Nil(t, err)
@@ -295,7 +319,6 @@ func TestMdns(t *testing.T) {
 
 	devices, err := mdns.Services()
 	assert.Nil(t, err)
-
 	logging.Log.Debug().Msgf("Found %d devices", len(devices))
 
 	for i := 0; i < len(devices); i++ {
@@ -305,9 +328,9 @@ func TestMdns(t *testing.T) {
 	assert.True(t, len(devices) > 0)
 
 	client2 := adbclient.NewClient(devices[1], true)
-	result, err = client2.Connect(5 * time.Second)
+	result2, err := client2.Connect(5 * time.Second)
 	assert.Nil(t, err)
-	logging.Log.Debug().Msg(result.String())
+	logging.Log.Debug().Msg(result2.String())
 
 	value, err := client2.IsConnected()
 	assert.Nil(t, err)
@@ -323,25 +346,28 @@ func TestPull(t *testing.T) {
 	path, err := filepath.Abs("./export")
 	assert.Nil(t, err)
 
-	result, err := client.Pull("/data/data/com.library.sample", path)
-
-	logging.Log.Debug().Msgf("output: %s", result.Output())
-	logging.Log.Debug().Msgf("error: %s", result.Error())
+	result, err := client.Pull("/system/build.prop", path)
+	if err != nil {
+		logging.Log.Debug().Msgf("result: %s", result.Error())
+	}
 
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk(), result.Output())
-	client.UnRoot()
-	client.DisconnectAll()
+
+	_, err = client.UnRoot()
+	assert.Nil(t, err)
+
+	_, err = client.DisconnectAll()
+	assert.Nil(t, err)
 }
 
 func TestPush(t *testing.T) {
 	var client = NewClient()
 	AssertClientConnected(t, client)
 
-	result, err := client.Push("../README.md", "/sdcard/Download")
+	result, err := client.Push("./README.md", "/sdcard/Download")
 	assert.Nil(t, err)
-	assert.Truef(t, result.IsOk(), "result: %s", result.Repr())
-
+	assert.Truef(t, result.IsOk(), "result: %s", result.String())
 	client.Disconnect()
 }
 
@@ -351,8 +377,10 @@ func TestWhich(t *testing.T) {
 
 	result, err := client.Shell.Which("which")
 	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+	assert.True(t, len(result.Output()) > 0)
 
-	println(result.Repr())
+	println(result.String())
 }
 
 func TestRx(t *testing.T) {
@@ -375,15 +403,13 @@ func TestRx(t *testing.T) {
 	client.Disconnect()
 	client.Connect(5 * time.Second)
 	client.IsConnected()
-	// client.Disconnect()
 
 	client = nil
 	runtime.GC()
-
-	time.Sleep(time.Duration(2) * time.Second)
+	time.Sleep(2 * time.Second)
 }
 
-func TestActivityManager(t *testing.T) {
+func TestSendBroadcast(t *testing.T) {
 	var client = NewClient()
 	AssertClientConnected(t, client)
 
@@ -391,11 +417,16 @@ func TestActivityManager(t *testing.T) {
 
 	var intent = types.NewIntent()
 	intent.Action = "android.action.View"
+	intent.Wait = true
 	intent.Extra.Es["key1"] = "string1"
 	intent.Extra.Es["key2"] = "string2"
 	intent.Extra.Eia["key_eia1"] = []int{1, 2, 3}
 
-	device.ActivityManager().Broadcast(intent)
+	result, err := device.ActivityManager().Broadcast(intent)
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk(), result.String())
+
+	println(result.String())
 }
 
 func TestShellCat(t *testing.T) {
@@ -407,12 +438,13 @@ func TestShellCat(t *testing.T) {
 	result, err := client.Shell.Whoami()
 	assert.Nil(t, err)
 	assert.Equal(t, "root", result.Output())
+	println(result.String())
 
 	result, err = client.Shell.Cat("/system/build.prop")
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
-	props, err := properties.Load(result.Stdout, properties.UTF8)
+	props, err := properties.Load(result.StdOut.Bytes(), properties.UTF8)
 	assert.Nil(t, err)
 
 	for _, k := range props.Keys() {
@@ -793,7 +825,7 @@ func TestPmInstall(t *testing.T) {
 	assert.True(t, result.IsOk())
 
 	remote_apk := fmt.Sprintf("/data/local/tmp/%s", path.Base(local_apk))
-	result, err = device.PackageManager().Install(remote_apk, &packagemanager.InstallOptions{
+	result2, err := device.PackageManager().Install(remote_apk, &packagemanager.InstallOptions{
 		User:                "0",
 		RestrictPermissions: false,
 		Pkg:                 "",
@@ -802,7 +834,7 @@ func TestPmInstall(t *testing.T) {
 	})
 
 	assert.Nil(t, err)
-	assert.True(t, result.IsOk())
+	assert.True(t, result2.IsOk())
 
 }
 
@@ -1076,6 +1108,7 @@ func TestLogcatPipe(t *testing.T) {
 		if len(match) > 0 {
 			fmt.Println(text)
 			fmt.Println("******** OK DONE!!!! **************")
+
 			break
 		}
 	}
@@ -1183,9 +1216,7 @@ func TestPipe(t *testing.T) {
 	if err != nil {
 		println("error: ")
 		println(err.Error())
-		println(result.ExitStatus.Stopped())
-		println(result.ExitStatus.Exited())
-		println(result.ExitStatus.Signaled())
+		println(result.ExitCode)
 	}
 
 	println(result.String())
@@ -1199,4 +1230,59 @@ func TestPipe(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 	println(result.Output())
+}
+
+func TestDebugWorkManager(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	var device = adbclient.NewDevice(client)
+
+	// clear logcat
+	err := client.ClearLogcat()
+	assert.Nil(t, err)
+
+	var intent = types.NewIntent()
+	intent.Action = "androidx.work.diagnostics.REQUEST_DIAGNOSTICS"
+	intent.Package = "com.swisscom.aot.library.standalone"
+	intent.Wait = true
+
+	_, err = device.ActivityManager().Broadcast(intent)
+	assert.Nil(t, err)
+
+	since := time.Now().Add(-10 * time.Second)
+
+	result, err := client.Logcat(types.LogcatOptions{
+		Format:  "brief",
+		Since:   &since,
+		Dump:    false,
+		Timeout: 2 * time.Second,
+		Tags: []types.LogcatTag{
+			{
+				Name:  "WM-DiagnosticsWrkr",
+				Level: types.LogcatVerbose,
+			},
+		},
+	})
+
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	fmt.Printf("exitCode: %d\n", result.ExitCode)
+
+	f := regexp.MustCompile(`[\w]{8}-[\w]{4}-[\w]{4}-[\w]{4}-[\w]{12}\s+(?P<classname>[\w\.]+)\s+(?P<jobid>[\w]+)\s+(?P<status>[\w]+)\s+(?P<name>[\w\.]+)\s+(?P<tags>[\w\.,]+)`)
+
+	for _, line := range result.OutputLines() {
+		match := f.FindStringSubmatch(line)
+		if len(match) > 0 {
+			groups := make(map[string]string)
+			for i, name := range f.SubexpNames() {
+				if i != 0 && name != "" {
+					groups[name] = match[i]
+				}
+			}
+			fmt.Printf("[%s] %s => %s\n", groups["jobid"], groups["classname"], groups["status"])
+		}
+	}
 }

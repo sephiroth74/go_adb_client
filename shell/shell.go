@@ -2,15 +2,17 @@ package shell
 
 import (
 	"fmt"
-	"github.com/magiconair/properties"
-	"github.com/sephiroth74/go_adb_client/connection"
-	streams "github.com/sephiroth74/go_streams"
 	"io/fs"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/magiconair/properties"
+	"github.com/sephiroth74/go_adb_client/connection"
+	"github.com/sephiroth74/go_adb_client/process"
+	streams "github.com/sephiroth74/go_streams"
 
 	"github.com/sephiroth74/go_adb_client/input"
 	"github.com/sephiroth74/go_adb_client/transport"
@@ -29,6 +31,10 @@ func NewShell(conn *connection.Connection, serial types.Serial) *Shell {
 		Conn:    conn,
 	}
 	return &s
+}
+
+func (s Shell) NewCommand() *process.ADBCommand {
+	return s.Conn.NewAdbCommand().WithSerialAddr(&s.Address).WithCommand("shell")
 }
 
 func (s Shell) NewProcess() *transport.ProcessBuilder {
@@ -51,28 +57,33 @@ func (s Shell) newProcess() *transport.ProcessBuilder {
 	return s.Conn.NewProcessBuilder().WithSerial(&s.Address).WithCommand("shell")
 }
 
-func (s Shell) Cat(filename string) (transport.Result, error) {
-	return s.ExecuteWithTimeout("cat", 0, filename)
+func (s Shell) Cat(filename string) (process.OutputResult, error) {
+	return process.SimpleOutput(s.NewCommand().Withargs("cat", filename), s.Conn.Verbose)
+	// return s.ExecuteWithTimeout("cat", 0, filename)
 }
 
-func (s Shell) Whoami() (transport.Result, error) {
-	return s.ExecuteWithTimeout("whoami", 0)
+func (s Shell) Whoami() (process.OutputResult, error) {
+	return process.SimpleOutput(s.NewCommand().Withargs("whoami"), s.Conn.Verbose)
+	// return s.ExecuteWithTimeout("whoami", 0)
 }
 
-func (s Shell) Which(command string) (transport.Result, error) {
-	return s.ExecuteWithTimeout("which", 0, command)
+func (s Shell) Which(command string) (process.OutputResult, error) {
+	cmd := s.NewCommand().Withargs("which", command)
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+	// return s.ExecuteWithTimeout("which", 0, command)
 }
 
 // GetProp ExecuteWithTimeout the command "adb shell getprop key" and returns its value if found, nil otherwise
 // Deprecated use GetPropValue instead
 func (s Shell) GetProp(key string) *string {
-	result, err := s.ExecuteWithTimeout("getprop", 0, key)
+	result, err := process.SimpleOutput(s.NewCommand().Withargs("getprop", key), s.Conn.Verbose)
+	// result, err := s.ExecuteWithTimeout("getprop", 0, key)
 	if err != nil {
 		return nil
 	}
 
 	if result.IsOk() {
-		trim := strings.TrimSpace(result.Output())
+		trim := result.Output()
 		return &trim
 	} else {
 		return nil
@@ -97,13 +108,14 @@ func (s Shell) GetPropValue(key string) (string, error) {
 // GetPropType Returns the property type.
 // Can be string, int, bool, enum [list string]
 func (s Shell) GetPropType(key string) (*string, bool) {
-	result, err := s.ExecuteWithTimeout("getprop", 0, "-T", key)
+	result, err := process.SimpleOutput(s.NewCommand().Withargs("getprop", "-T", key), s.Conn.Verbose)
+	// result, err := s.ExecuteWithTimeout("getprop", 0, "-T", key)
 	if err != nil {
 		return nil, false
 	}
 
 	if result.IsOk() {
-		trim := strings.TrimSpace(result.Output())
+		trim := result.Output()
 		return &trim, true
 	} else {
 		return nil, false
@@ -111,7 +123,8 @@ func (s Shell) GetPropType(key string) (*string, bool) {
 }
 
 func (s Shell) GetProps() (*properties.Properties, error) {
-	result, err := s.ExecuteWithTimeout("getprop", 0)
+	result, err := process.SimpleOutput(s.NewCommand().Withargs("getprop"), s.Conn.Verbose)
+	// result, err := s.ExecuteWithTimeout("getprop", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -121,12 +134,10 @@ func (s Shell) GetProps() (*properties.Properties, error) {
 		pairs, err := parsePropLines(result.Output())
 		for _, t := range pairs {
 			if err != nil {
-				println("err is not null", err.Error())
 				return nil, err
 			}
 
 			if _, _, err := props.Set(t.First, t.Second); err != nil {
-				println("failed to set property")
 				return nil, err
 			}
 		}
@@ -142,7 +153,8 @@ func (s Shell) SetProp(key string, value string) bool {
 		newvalue = "\"\""
 	}
 
-	result, err := s.ExecuteWithTimeout("setprop", constants.DEFAULT_TIMEOUT, key, newvalue)
+	result, err := process.SimpleOutput(s.NewCommand().Withargs("setprop", key, newvalue).WithTimeout(constants.DEFAULT_TIMEOUT), s.Conn.Verbose)
+	// result, err := s.ExecuteWithTimeout("setprop", constants.DEFAULT_TIMEOUT, key, newvalue)
 	if err != nil {
 		return false
 	}
@@ -308,7 +320,7 @@ func (s Shell) ScreenRecord(options ScreenRecordOptions, c chan os.Signal, filen
 	args = append(args, filename)
 
 	pb.WithArgs(args...).WithCancel(c)
-	
+
 	return pb.Invoke()
 }
 

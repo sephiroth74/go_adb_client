@@ -2,9 +2,11 @@ package logging
 
 import (
 	"fmt"
-	"github.com/rs/zerolog"
 	"os"
 	"strings"
+
+	"github.com/rs/zerolog"
+	"github.com/sephiroth74/go-processbuilder"
 )
 
 var (
@@ -51,4 +53,9 @@ func colorize(s interface{}, c int, disabled bool) string {
 		return fmt.Sprintf("%s", s)
 	}
 	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", c, s)
+}
+
+
+func init() {
+	processbuilder.Logger = &Log
 }
