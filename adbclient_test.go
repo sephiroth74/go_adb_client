@@ -693,16 +693,11 @@ func TestIsSystem(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	//defer client.Disconnect()
-
 	device := adbclient.NewDevice(client)
 	pm := device.PackageManager()
 
 	is_system, _ := pm.IsSystem("com.android.tv.settings")
 	assert.True(t, is_system)
-
-	// is_system, _ = pm.IsSystem("com.google.youtube")
-	// assert.False(t, is_system)
 }
 
 func TestSendKey(t *testing.T) {
@@ -775,7 +770,7 @@ func TestPowerOffOn(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 	device := adbclient.NewDevice(client)
-	
+
 	result, err := device.IsScreenOn()
 	assert.Nil(t, err)
 	assert.True(t, result)
@@ -871,7 +866,7 @@ func TestDump(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	pkg := "com.netflix.ninja"
+	pkg := "com.android.tv.settings"
 
 	device := adbclient.NewDevice(client)
 	result, err := device.PackageManager().Dump(pkg)
@@ -880,9 +875,15 @@ func TestDump(t *testing.T) {
 
 	parser := packagemanager.NewPackageReader(result.Output())
 	assert.NotNil(t, parser)
+
+	if parser == nil {
+		fmt.Printf("%s\n", result.String())
+		return
+	}
+
 	assert.Equal(t, pkg, parser.PackageName())
 	assert.Equal(t, "1000", parser.UserID())
-	assert.Equal(t, "1.0.41", parser.VersionName())
+	assert.Equal(t, "1.0", parser.VersionName())
 	assert.True(t, len(parser.CodePath()) > 1)
 	assert.True(t, len(parser.TimeStamp()) > 1)
 	assert.True(t, len(parser.LastUpdateTime()) > 1)
@@ -976,11 +977,11 @@ func TestGetSettings(t *testing.T) {
 	_, err := client.Root()
 	assert.Nil(t, err)
 
-	settings, err := client.Shell.GetSetting("system_locales", types.SettingsSystem)
+	settings, err := client.Shell.GetSetting("user_rotation", types.SettingsSystem)
 	assert.Nil(t, err)
 	assert.NotNil(t, settings)
-	assert.True(t, len(*settings) > 0)
-	logging.Log.Debug().Msgf("system_locales = %s", *settings)
+	assert.Equal(t, "0", *settings)
+	logging.Log.Debug().Msgf("user_rotation = %s", *settings)
 
 	settings, err = client.Shell.GetSetting("transition_animation_scale", types.SettingsGlobal)
 	assert.Nil(t, err)
@@ -1065,13 +1066,13 @@ func TestScan(t *testing.T) {
 	logging.Log.Info().Msgf("Done")
 }
 
-func TestLogcat(t *testing.T) {
+func TestLogcatSimple(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 	since := time.Now().Add(-3 * time.Hour)
 
 	result, err := client.Logcat(types.LogcatOptions{
-		Expr:     "Authorization: Bearer ([0-9a-zA-Z-]+)",
+		Expr:     "swisscom",
 		Dump:     true,
 		Filename: "",
 		Tags:     nil,
@@ -1087,6 +1088,50 @@ func TestLogcat(t *testing.T) {
 	for _, line := range result.OutputLines() {
 		logging.Log.Debug().Msgf(line)
 	}
+}
+
+func TestLogcatToDeviceFile(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	since := time.Now().Add(-3 * time.Hour)
+
+	result, err := client.Logcat(types.LogcatOptions{
+		Expr:     "swisscom",
+		Dump:     true,
+		Filename: "/sdcard/Download/logcat.txt",
+		Tags:     nil,
+		Format:   "",
+		Since:    &since,
+		Pids:     nil,
+		Timeout:  10 * time.Second,
+	})
+
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+	fmt.Println(result.String())
+}
+
+func TestLogcatToLocalFile(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	since := time.Now().Add(-3 * time.Hour)
+
+	localFile, _ := os.Create("logcat.txt")
+
+	result, err := client.Logcat(types.LogcatOptions{
+		Expr:    "swisscom",
+		Dump:    true,
+		File:    localFile,
+		Tags:    nil,
+		Format:  "",
+		Since:   &since,
+		Pids:    nil,
+		Timeout: 10 * time.Second,
+	})
+
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+	fmt.Println(result.String())
 }
 
 func TestLogcatPipe(t *testing.T) {

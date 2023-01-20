@@ -220,11 +220,11 @@ func (c Client) ClearLogcat() error {
 	return err
 }
 
-func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
+func (c Client) Logcat(options types.LogcatOptions) (process.OutputResult, error) {
 	var args []string
 
 	if options.Filename != "" && options.File != nil {
-		return transport.Result{}, errors.New("filename and file cannot be used togethere")
+		return process.OutputResult{}, errors.New("filename and file cannot be used togethere")
 	}
 
 	if options.Expr != "" {
@@ -261,18 +261,22 @@ func (c Client) Logcat(options types.LogcatOptions) (transport.Result, error) {
 		args = append(args, options.Since.Format("01-02 15:04:05.000"))
 	}
 
-	pb := c.NewProcess().WithArgs(args...).WithCommand("logcat")
+	// pb := c.NewProcess().WithArgs(args...).WithCommand("logcat")
+	cmd := c.NewAdbCommand().WithArgs(args...).WithCommand("logcat")
 
 	if options.Timeout > 0 {
-		pb.WithTimeout(options.Timeout)
+		cmd.WithTimeout(options.Timeout)
+		// pb.WithTimeout(options.Timeout)
 	}
 
 	if options.File != nil {
 		var writer io.Writer = bufio.NewWriter(options.File)
-		pb.WithStdout(&writer)
+		// pb.WithStdout(&writer)
+		cmd.WithStdOut(writer)
 	}
 
-	return pb.Invoke()
+	return process.SimpleOutput(cmd, c.Conn.Verbose)
+	// return pb.Invoke()
 }
 
 func (c Client) LogcatCommand(options types.LogcatOptions) (*exec.Cmd, context.CancelFunc, error) {

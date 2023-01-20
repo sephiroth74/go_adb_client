@@ -48,8 +48,10 @@ func (p PackageManager) IsSystem(name string) (bool, error) {
 	return result.IsOk(), nil
 }
 
-func (p PackageManager) Dump(name string) (transport.Result, error) {
-	return p.Shell.Executef("pm dump %s", name)
+func (p PackageManager) Dump(name string) (process.OutputResult, error) {
+	cmd := p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm dump %s", name))
+	return process.SimpleOutput(cmd, p.Shell.Conn.Verbose)
+	// return p.Shell.Executef("pm dump %s", name)
 }
 
 // ListPackagesWithFilter List packages on the device
@@ -266,8 +268,10 @@ func (p PackageManager) DumpPackage(packageName string) (*SimplePackageReader, e
 }
 
 // Clear executes a "pm clear packageName" on the connected device
-func (p PackageManager) Clear(packageName string) (transport.Result, error) {
-	return p.Shell.Executef("pm clear %s", packageName)
+func (p PackageManager) Clear(packageName string) (process.OutputResult, error) {
+	cmd := p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm clear %s", packageName))
+	return process.SimpleOutput(cmd, p.Shell.Conn.Verbose)
+	// return p.Shell.Executef("pm clear %s", packageName)
 }
 
 func (p PackageManager) GrantPermission(packageName string, permission string) (transport.Result, error) {

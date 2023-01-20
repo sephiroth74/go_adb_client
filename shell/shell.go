@@ -390,7 +390,9 @@ func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
 }
 
 func (s Shell) ListSettings(namespace types.SettingsNamespace) (*properties.Properties, error) {
-	result, err := s.newProcess().WithArgs(fmt.Sprintf("settings list %s", namespace)).Invoke()
+	cmd := s.NewCommand().WithArgs(fmt.Sprintf("settings list %s", namespace))
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
+	// result, err := s.newProcess().WithArgs(fmt.Sprintf("settings list %s", namespace)).Invoke()
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +404,9 @@ func (s Shell) ListSettings(namespace types.SettingsNamespace) (*properties.Prop
 }
 
 func (s Shell) GetSetting(key string, namespace types.SettingsNamespace) (*string, error) {
-	result, err := s.newProcess().WithArgs(fmt.Sprintf("settings get %s %s", namespace, key)).Invoke()
+	cmd := s.NewCommand().WithArgs(fmt.Sprintf("settings get %s %s", namespace, key))
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
+	// result, err := s.newProcess().WithArgs(fmt.Sprintf("settings get %s %s", namespace, key)).Invoke()
 
 	if err != nil {
 		return nil, err
@@ -420,7 +424,9 @@ func (s Shell) GetSetting(key string, namespace types.SettingsNamespace) (*strin
 }
 
 func (s Shell) PutSetting(key string, value string, namespace types.SettingsNamespace) error {
-	result, err := s.newProcess().WithArgs(fmt.Sprintf("settings put %s %s %s", namespace, key, value)).Invoke()
+	cmd := s.NewCommand().WithArgs(fmt.Sprintf("settings put %s %s %s", namespace, key, value))
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
+	// result, err := s.newProcess().WithArgs(fmt.Sprintf("settings put %s %s %s", namespace, key, value)).Invoke()
 
 	if err != nil {
 		return err
@@ -434,7 +440,9 @@ func (s Shell) PutSetting(key string, value string, namespace types.SettingsName
 }
 
 func (s Shell) DeleteSetting(key string, namespace types.SettingsNamespace) error {
-	result, err := s.newProcess().WithArgs(fmt.Sprintf("settings delete %s %s", namespace, key)).Invoke()
+	cmd := s.NewCommand().WithArgs(fmt.Sprintf("settings delete %s %s", namespace, key))
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
+	// result, err := s.newProcess().WithArgs(fmt.Sprintf("settings delete %s %s", namespace, key)).Invoke()
 
 	if err != nil {
 		return err
