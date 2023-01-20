@@ -14,7 +14,6 @@ import (
 	streams "github.com/sephiroth74/go_streams"
 
 	"github.com/sephiroth74/go_adb_client/input"
-	"github.com/sephiroth74/go_adb_client/transport"
 	"github.com/sephiroth74/go_adb_client/types"
 	"github.com/sephiroth74/go_adb_client/util/constants"
 )
@@ -40,10 +39,6 @@ func (s Shell) Execute(command string, args ...string) (process.OutputResult, er
 	return process.SimpleOutput(s.NewCommand().WithArgs(command).AddArgs(args...), s.Conn.Verbose)
 }
 
-func (s Shell) newProcess() *transport.ProcessBuilder {
-	return s.Conn.NewProcessBuilder().WithSerial(&s.Address).WithCommand("shell")
-}
-
 func (s Shell) Cat(filename string) (process.OutputResult, error) {
 	return process.SimpleOutput(s.NewCommand().WithArgs("cat", filename), s.Conn.Verbose)
 }
@@ -52,9 +47,18 @@ func (s Shell) Whoami() (process.OutputResult, error) {
 	return process.SimpleOutput(s.NewCommand().WithArgs("whoami"), s.Conn.Verbose)
 }
 
-func (s Shell) Which(command string) (process.OutputResult, error) {
+func (s Shell) Which(command string) (string, error) {
 	cmd := s.NewCommand().WithArgs("which", command)
-	return process.SimpleOutput(cmd, s.Conn.Verbose)
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
+	if err != nil {
+		return "", err
+	}
+
+	if !result.IsOk() {
+		return "", result.NewError()
+	}
+
+	return result.Output(), nil
 }
 
 // GetProp ExecuteWithTimeout the command "adb shell getprop key" and returns its value if found, nil otherwise
@@ -304,8 +308,6 @@ func (s Shell) ScreenRecord(options ScreenRecordOptions, c chan os.Signal, filen
 	args = append(args, filename)
 
 	return process.SimpleOutput(s.NewCommand().WithArgs(args...).WithCancel(c), s.Conn.Verbose)
-	// pb.WithArgs(args...).WithCancel(c)
-	// return pb.Invoke()
 }
 
 func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
@@ -315,7 +317,7 @@ func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
 		return emptyList, os.ErrNotExist
 	}
 
-	result, err := s.newProcess().WithArgs("ls -lLHap --color=none", dirname).Invoke()
+	result, err := process.SimpleOutput(s.NewCommand().WithArgs("ls -lLHap --color=none", dirname), s.Conn.Verbose)
 
 	if err != nil {
 		return emptyList, err
@@ -366,7 +368,6 @@ func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
 func (s Shell) ListSettings(namespace types.SettingsNamespace) (*properties.Properties, error) {
 	cmd := s.NewCommand().WithArgs(fmt.Sprintf("settings list %s", namespace))
 	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
-	// result, err := s.newProcess().WithArgs(fmt.Sprintf("settings list %s", namespace)).Invoke()
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +381,6 @@ func (s Shell) ListSettings(namespace types.SettingsNamespace) (*properties.Prop
 func (s Shell) GetSetting(key string, namespace types.SettingsNamespace) (*string, error) {
 	cmd := s.NewCommand().WithArgs(fmt.Sprintf("settings get %s %s", namespace, key))
 	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
-	// result, err := s.newProcess().WithArgs(fmt.Sprintf("settings get %s %s", namespace, key)).Invoke()
 
 	if err != nil {
 		return nil, err
@@ -400,7 +400,6 @@ func (s Shell) GetSetting(key string, namespace types.SettingsNamespace) (*strin
 func (s Shell) PutSetting(key string, value string, namespace types.SettingsNamespace) error {
 	cmd := s.NewCommand().WithArgs(fmt.Sprintf("settings put %s %s %s", namespace, key, value))
 	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
-	// result, err := s.newProcess().WithArgs(fmt.Sprintf("settings put %s %s %s", namespace, key, value)).Invoke()
 
 	if err != nil {
 		return err

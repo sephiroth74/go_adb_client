@@ -6,7 +6,6 @@ import (
 
 	"github.com/sephiroth74/go_adb_client/connection"
 	"github.com/sephiroth74/go_adb_client/process"
-	"github.com/sephiroth74/go_adb_client/transport"
 	"github.com/sephiroth74/go_adb_client/types"
 )
 
@@ -14,21 +13,14 @@ type Mdns struct {
 	Conn *connection.Connection
 }
 
-func (m Mdns) Check() (transport.Result, error) {
-	return m.Conn.NewProcessBuilder().
-		WithCommand("mdns").
-		WithArgs("check").
-		Invoke()
+func (m Mdns) Check() (process.OutputResult, error) {
+	return process.SimpleOutput(m.Conn.NewAdbCommand().WithArgs("mdns", "check"), m.Conn.Verbose)
 }
 
 func (m Mdns) Services() ([]types.MdnsDevice, error) {
 	// adb-JA37001FF3	_adb._tcp.	192.168.1.105:5555
 	cmd := m.Conn.NewAdbCommand().WithCommand("mdns").WithArgs("services")
 	result, err := process.SimpleOutput(cmd, m.Conn.Verbose)
-	// result, err := m.Conn.NewProcessBuilder().
-	// WithCommand("mdns").
-	// WithArgs("services").
-	// Invoke()
 	if err != nil {
 		return nil, err
 	}

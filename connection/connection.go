@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/sephiroth74/go_adb_client/process"
-	"github.com/sephiroth74/go_adb_client/transport"
 	"github.com/sephiroth74/go_adb_client/types"
 	"github.com/sephiroth74/go_adb_client/util/constants"
 
@@ -31,16 +30,6 @@ func NewConnection(verbose bool) *Connection {
 
 func (c Connection) NewAdbCommand() *process.ADBCommand {
 	return process.NewADBCommand(c.ADBPath)
-}
-
-func (c Connection) NewProcessBuilder(verbose ...bool) *transport.ProcessBuilder {
-	v := c.Verbose
-	if len(verbose) > 0 {
-		v = verbose[0]
-	}
-	return transport.NewProcessBuilder().
-		Verbose(v).
-		WithPath(&c.ADBPath)
 }
 
 // Version returns the adb version
@@ -210,12 +199,10 @@ func (c Connection) Uninstall(addr string, packageName string, args ...string) (
 }
 
 func (c Connection) Which(addr string, command string) (string, error) {
-	result, err := c.NewProcessBuilder().
-		WithSerialAddr(addr).
-		WithCommand(constants.WHICH).
-		WithArgs(command).
-		Invoke()
-
+	result, err := process.SimpleOutput(
+		c.NewAdbCommand().WithSerial(addr).WithArgs("shell", constants.WHICH, command),
+		c.Verbose,
+	)
 	if err != nil {
 		return "", err
 	}

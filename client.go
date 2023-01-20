@@ -20,7 +20,6 @@ import (
 	"github.com/sephiroth74/go_adb_client/mdns"
 	"github.com/sephiroth74/go_adb_client/process"
 	"github.com/sephiroth74/go_adb_client/shell"
-	"github.com/sephiroth74/go_adb_client/transport"
 	"github.com/sephiroth74/go_adb_client/types"
 )
 
@@ -58,14 +57,6 @@ func (c Client) DeferredDispatch(eventType events.EventType) {
 
 func (c Client) Dispatch(eventType events.EventType, data interface{}) {
 	go func() { c.Channel <- rxgo.Of(events.AdbEvent{Event: eventType, Item: data}) }()
-}
-
-func WaitAndReturn(result *transport.Result, err error, timeout time.Duration) (transport.Result, error) {
-	if err != nil {
-		return *result, err
-	}
-	time.Sleep(timeout)
-	return *result, err
 }
 
 func WaitAndReturnOutput(result *process.OutputResult, err error, timeout time.Duration) (process.OutputResult, error) {

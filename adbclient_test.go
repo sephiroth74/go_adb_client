@@ -421,10 +421,24 @@ func TestWhich(t *testing.T) {
 
 	result, err := client.Shell.Which("which")
 	assert.Nil(t, err)
-	assert.True(t, result.IsOk())
-	assert.True(t, len(result.Output()) > 0)
+	assert.True(t, len(result) > 0)
 
-	println(result.String())
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	fmt.Println(result)
+
+	result2, err := client.Shell.Conn.Which(client.Address.GetSerialAddress(), "which")
+	assert.Nil(t, err)
+	assert.True(t, result2 == result)
+
+	if err != nil {
+		fmt.Println(err.Error())
+	}	
+
+	fmt.Println(result2)
+
 }
 
 func TestRx(t *testing.T) {
