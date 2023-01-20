@@ -1,13 +1,13 @@
 package packagemanager
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/sephiroth74/go_adb_client/process"
-	"github.com/sephiroth74/go_adb_client/transport"
 
 	"github.com/alecthomas/repr"
 	"github.com/sephiroth74/go_adb_client/shell"
@@ -18,14 +18,27 @@ type PackageManager struct {
 	Shell *shell.Shell
 }
 
-func (p PackageManager) Path(packageName string) (string, error) {
-	result, err := p.Shell.ExecuteWithTimeout("pm", 0, "path", packageName)
+func (p PackageManager) Path(packageName string, user string) (string, error) {
+	cmd := p.Shell.NewCommand().WithArgs("pm", "path")
+	if user != "" {
+		cmd.AddArgs("--user", user)
+	}
+
+	cmd.AddArgs(packageName)
+
+	result, err := process.SimpleOutput(cmd, p.Shell.Conn.Verbose)
+
 	if err != nil {
 		return "", err
 	}
 
 	if result.IsOk() {
-		return result.Output(), nil
+		f := regexp.MustCompile(`package:(.*)`)
+		m := f.FindStringSubmatch(result.Output())
+		if m != nil && len(m) == 2 {
+			return m[1], nil
+		}
+		return "", errors.New("path not found")
 	} else {
 		return "", result.NewError()
 	}
@@ -38,8 +51,6 @@ func (p PackageManager) ListPackages(options PackageOptions) ([]Package, error) 
 func (p PackageManager) IsSystem(name string) (bool, error) {
 	cmd := p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm dump %s | egrep '^ {1,}flags=' | egrep ' {1,}SYSTEM {1,}'", name))
 	result, err := process.SimpleOutput(cmd, p.Shell.Conn.Verbose)
-	// result, err := p.Shell.ExecuteWithTimeout(
-	// 	fmt.Sprintf("pm dump %s | egrep '^ {1,}flags=' | egrep ' {1,}SYSTEM {1,}'", name), 0)
 
 	if err != nil {
 		return false, err
@@ -51,7 +62,14 @@ func (p PackageManager) IsSystem(name string) (bool, error) {
 func (p PackageManager) Dump(name string) (process.OutputResult, error) {
 	cmd := p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm dump %s", name))
 	return process.SimpleOutput(cmd, p.Shell.Conn.Verbose)
-	// return p.Shell.Executef("pm dump %s", name)
+}
+
+func (p PackageManager) IsInstalled(packagename string, user string) (bool, error) {
+	pkg, err := p.Path(packagename, user)
+	if err != nil {
+		return false, err
+	}
+	return len(pkg) > 0, nil
 }
 
 // ListPackagesWithFilter List packages on the device
@@ -155,7 +173,6 @@ func (p PackageManager) Install(src string, options *InstallOptions) (process.Ou
 	args = append(args, src)
 	cmd := p.Shell.NewCommand().WithArgs("cmd package install").AddArgs(args...)
 	return process.SimpleOutput(cmd, p.Shell.Conn.Verbose)
-	// return p.Shell.ExecuteWithTimeout("cmd package install", 0, args...)
 }
 
 // Uninstall
@@ -271,25 +288,24 @@ func (p PackageManager) DumpPackage(packageName string) (*SimplePackageReader, e
 func (p PackageManager) Clear(packageName string) (process.OutputResult, error) {
 	cmd := p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm clear %s", packageName))
 	return process.SimpleOutput(cmd, p.Shell.Conn.Verbose)
-	// return p.Shell.Executef("pm clear %s", packageName)
 }
 
-func (p PackageManager) GrantPermission(packageName string, permission string) (transport.Result, error) {
-	return p.Shell.Executef("pm grant %s %s", packageName, permission)
+func (p PackageManager) GrantPermission(packageName string, permission string) (process.OutputResult, error) {
+	return process.SimpleOutput(p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm grant %s %s", packageName, permission)), p.Shell.Conn.Verbose)
 }
 
-func (p PackageManager) RevokePermission(packageName string, permission string) (transport.Result, error) {
-	return p.Shell.Executef("pm revoke %s %s", packageName, permission)
+func (p PackageManager) RevokePermission(packageName string, permission string) (process.OutputResult, error) {
+	return process.SimpleOutput(p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm revoke %s %s", packageName, permission)), p.Shell.Conn.Verbose)
 }
 
 // Enable enable a package
-func (p PackageManager) Enable(packageName string) (transport.Result, error) {
-	return p.Shell.Executef("pm enable %s", packageName)
+func (p PackageManager) Enable(packageName string) (process.OutputResult, error) {
+	return process.SimpleOutput(p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm enable %s", packageName)), p.Shell.Conn.Verbose)
 }
 
 // Disable disable a package
-func (p PackageManager) Disable(packageName string) (transport.Result, error) {
-	return p.Shell.Executef("pm disable %s", packageName)
+func (p PackageManager) Disable(packageName string) (process.OutputResult, error) {
+	return process.SimpleOutput(p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm disable %s", packageName)), p.Shell.Conn.Verbose)
 }
 
 type UninstallOptions struct {

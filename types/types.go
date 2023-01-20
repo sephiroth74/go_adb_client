@@ -340,11 +340,15 @@ func (s Size) String() string {
 // region SettingsNamespace
 
 type SettingsNamespace string
+type ReconnectType string
 
 const (
 	SettingsGlobal SettingsNamespace = "global"
 	SettingsSystem SettingsNamespace = "system"
 	SettingsSecure SettingsNamespace = "secure"
+
+	ReconnectToDevice = "device"
+	ReconnectToOffline = "offline"
 )
 
 // endregion SettingsNamespace

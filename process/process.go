@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/sephiroth74/go-processbuilder"
 	"github.com/sephiroth74/go_adb_client/types"
+	streams "github.com/sephiroth74/go_streams"
 )
 
 type Command struct {
@@ -32,10 +35,16 @@ type ADBCommand struct {
 	StdOut     io.Writer
 	Args       []string
 	Timeout    time.Duration
+	Cancel     chan os.Signal
 }
 
 func NewADBCommand(path string) *ADBCommand {
 	return &ADBCommand{ADBPath: path, Timeout: 0}
+}
+
+func (a *ADBCommand) WithCancel(c chan os.Signal) *ADBCommand {
+	a.Cancel = c
+	return a
 }
 
 func (a *ADBCommand) WithCommand(command string) *ADBCommand {
@@ -113,6 +122,10 @@ func (o OutputResult) IsOk() bool {
 	return o.ExitCode == 0
 }
 
+func (o OutputResult) IsInterrupted() bool {
+	return o.ExitCode == int(syscall.SIGINT)
+}
+
 func (o OutputResult) NewError() error {
 	return fmt.Errorf("invalid exit code: %d\n%s", o.ExitCode, o.Error())
 }
@@ -130,7 +143,10 @@ func (o OutputResult) Output() string {
 }
 
 func (o OutputResult) OutputLines() []string {
-	return strings.Split(strings.TrimSpace(o.StdOut.String()), "\n")
+	splitted := strings.Split(o.StdOut.String(), "\n")
+	return streams.Map(splitted, func(line string) string {
+		return strings.TrimSpace(line)
+	})
 }
 
 func (o OutputResult) String() string {
@@ -140,6 +156,10 @@ func (o OutputResult) String() string {
 func SimpleOutput(command *ADBCommand, verbose bool) (OutputResult, error) {
 	option := processbuilder.Option{
 		Timeout: command.Timeout,
+	}
+
+	if command.Cancel != nil {
+		option.Close = &command.Cancel
 	}
 
 	if verbose {

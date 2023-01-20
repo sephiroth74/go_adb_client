@@ -2,13 +2,11 @@ package adbclient
 
 import (
 	"bufio"
-	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -54,10 +52,6 @@ func (c Client) NewAdbCommand() *process.ADBCommand {
 	return c.Conn.NewAdbCommand().WithSerialAddr(&c.Address)
 }
 
-func (c Client) NewProcess() *transport.ProcessBuilder {
-	return c.Conn.NewProcessBuilder().WithSerial(&c.Address)
-}
-
 func (c Client) DeferredDispatch(eventType events.EventType) {
 	defer func() { go func() { c.Channel <- rxgo.Of(events.AdbEvent{Event: eventType}) }() }()
 }
@@ -100,8 +94,8 @@ func (c Client) Connect(timeout time.Duration) (process.OutputResult, error) {
 	}
 }
 
-func (c Client) Reconnect(timeout time.Duration) (transport.Result, error) {
-	return c.Conn.Reconnect(c.Address.GetSerialAddress(), timeout)
+func (c Client) Reconnect(t types.ReconnectType, timeout time.Duration) (process.OutputResult, error) {
+	return c.Conn.Reconnect(t, timeout)
 }
 
 func (c Client) IsConnected() (bool, error) {
@@ -137,18 +131,35 @@ func (c Client) WaitForDevice(timeout time.Duration) (process.OutputResult, erro
 	return c.Conn.WaitForDevice(c.Address.GetSerialAddress(), timeout)
 }
 
-func (c Client) Root() (process.OutputResult, error) {
+func (c Client) Root() error {
 	result, err := c.Conn.Root(c.Address.GetSerialAddress())
-	return WaitAndReturnOutput(&result, err, time.Duration(1)*time.Second)
+	result, err = WaitAndReturnOutput(&result, err, time.Duration(1)*time.Second)
+	if err != nil {
+		return err
+	}
+	if !result.IsOk() {
+		return result.NewError()
+	}
+	return nil
 }
 
 func (c Client) IsRoot() (bool, error) {
 	return c.Conn.IsRoot(c.Address.GetSerialAddress())
 }
 
-func (c Client) UnRoot() (process.OutputResult, error) {
+func (c Client) UnRoot() error {
 	result, err := c.Conn.UnRoot(c.Address.GetSerialAddress())
-	return WaitAndReturnOutput(&result, err, time.Duration(1)*time.Second)
+	result, err = WaitAndReturnOutput(&result, err, time.Duration(1)*time.Second)
+
+	if err != nil {
+		return err
+	}
+
+	if !result.IsOk() {
+		return result.NewError()
+	}
+
+	return nil
 }
 
 func (c Client) ListDevices() ([]*types.Device, error) {
@@ -176,8 +187,8 @@ func (c Client) Unmount(dir string) (process.OutputResult, error) {
 
 // BugReport ExecuteWithTimeout and return the result of the command 'adb bugreport'
 // dst: optional target local folder/filename for the bugreport
-func (c Client) BugReport(dst string) (transport.Result, error) {
-	return c.Conn.BugReport(c.Address.GetSerialAddress(), dst).Invoke()
+func (c Client) BugReport(dst string) (process.OutputResult, error) {
+	return c.Conn.BugReport(c.Address.GetSerialAddress(), dst)
 }
 
 // Pull a file from the device.
@@ -213,12 +224,13 @@ func (c Client) Install(src string, options *InstallOptions) (process.OutputResu
 	return c.Conn.Install(c.Address.GetSerialAddress(), src, args...)
 }
 
-func (c Client) Uninstall(packageName string) (transport.Result, error) {
+func (c Client) Uninstall(packageName string) (process.OutputResult, error) {
 	return c.Conn.Uninstall(c.Address.GetSerialAddress(), packageName)
 }
 
 func (c Client) ClearLogcat() error {
-	_, err := c.NewProcess().WithCommand("logcat").WithArgs("-b", "all", "-c").Invoke()
+	_, err := process.SimpleOutput(c.NewAdbCommand().WithCommand("logcat").WithArgs("-b", "all", "-c"), c.Conn.Verbose)
+	// _, err := c.NewProcess().WithCommand("logcat").WithArgs("-b", "all", "-c").Invoke()
 	return err
 }
 
@@ -250,17 +262,17 @@ func (c Client) Logcat(options types.LogcatOptions) (process.OutputResult, error
 		args = append(args, options.Pids...)
 	}
 
+	if options.Since != nil {
+		args = append(args, "-T")
+		args = append(args, options.Since.Format("01-02 15:04:05.000"))
+	}
+
 	if len(options.Tags) > 0 {
 		tags := streams.Map(options.Tags, func(tag types.LogcatTag) string {
 			return tag.String()
 		})
 		args = append(args, tags...)
 		args = append(args, "*:S")
-	}
-
-	if options.Since != nil {
-		args = append(args, "-T")
-		args = append(args, options.Since.Format("01-02 15:04:05.000"))
 	}
 
 	// pb := c.NewProcess().WithArgs(args...).WithCommand("logcat")
@@ -331,43 +343,6 @@ func (c Client) LogcatPipe(options types.LogcatOptions, cs chan os.Signal) (*pro
 	return p, nil
 }
 
-func (c Client) LogcatCommand(options types.LogcatOptions) (*exec.Cmd, context.CancelFunc, error) {
-	var args []string
-
-	if options.Expr != "" {
-		args = append(args, "-e", options.Expr)
-	}
-
-	if options.Format != "" {
-		args = append(args, "-v", options.Format)
-	}
-
-	if len(options.Pids) > 0 {
-		args = append(args, "--pid")
-		args = append(args, options.Pids...)
-	}
-
-	if len(options.Tags) > 0 {
-		tags := streams.Map(options.Tags, func(tag types.LogcatTag) string {
-			return tag.String()
-		})
-		args = append(args, tags...)
-		args = append(args, "*:S")
-	}
-
-	if options.Since != nil {
-		args = append(args, "-T")
-		args = append(args, options.Since.Format("01-02 15:04:05.000"))
-	}
-
-	pb := c.NewProcess().WithArgs(args...).WithCommand("logcat")
-
-	if options.Timeout > 0 {
-		pb.WithTimeout(options.Timeout)
-	}
-	return pb.Command()
-}
-
 //
 //
 //
@@ -396,7 +371,7 @@ func (c Client) MustRoot() bool {
 		if c.GetIsRoot() {
 			return true
 		} else {
-			_, err := c.Root()
+			err := c.Root()
 			if err != nil {
 				return false
 			}
