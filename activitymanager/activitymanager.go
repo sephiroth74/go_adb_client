@@ -12,7 +12,7 @@ type ActivityManager struct {
 }
 
 func (a ActivityManager) Broadcast(intent *types.Intent) (process.OutputResult, error) {
-	cmd := a.Shell.NewCommand().Withargs("am", "broadcast", intent.String())
+	cmd := a.Shell.NewCommand().WithArgs("am", "broadcast", intent.String())
 	return process.SimpleOutput(cmd, a.Shell.Conn.Verbose)
 	// return a.Shell.ExecuteWithTimeout("am", 0, "broadcast", intent.String())
 }

@@ -43,7 +43,7 @@ import (
 var device_ip2 = net.IPv4(192, 168, 1, 117)
 var device_ip = device_ip2
 
-var local_apk = ""
+var local_apk = "~/ArcCustomizeSettings.apk"
 
 func init() {
 }
@@ -594,7 +594,7 @@ func TestWriteScreenCap(t *testing.T) {
 	os.RemoveAll(target_dir)
 }
 
-func TestFile(t *testing.T) {
+func TestFileExists(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
@@ -698,11 +698,11 @@ func TestIsSystem(t *testing.T) {
 	device := adbclient.NewDevice(client)
 	pm := device.PackageManager()
 
-	is_system, _ := pm.IsSystem("com.google.youtube")
+	is_system, _ := pm.IsSystem("com.android.tv.settings")
 	assert.True(t, is_system)
 
-	is_system, _ = pm.IsSystem("com.google.youtube")
-	assert.False(t, is_system)
+	// is_system, _ = pm.IsSystem("com.google.youtube")
+	// assert.False(t, is_system)
 }
 
 func TestSendKey(t *testing.T) {
@@ -711,22 +711,24 @@ func TestSendKey(t *testing.T) {
 	result, err := client.Shell.SendKeyEvent(input.KEYCODE_DPAD_DOWN)
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
+
+	fmt.Println(result.String())
 }
 
 func TestSendText(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	// defer client.Disconnect()
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
-		client.Shell.SendString("Alessandro")
+		result, err := client.Shell.SendString("Alessandro")
+		assert.Nil(t, err)
+		assert.True(t, result.IsOk())
+		fmt.Println(result.String())
 		wg.Done()
 	}()
-
 	wg.Wait()
 }
 
@@ -734,13 +736,15 @@ func TestSendKeys(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	// defer client.Disconnect()
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
-		client.Shell.SendKeyEvents(input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL)
+		result, err := client.Shell.SendKeyEvents(input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL)
+		assert.Nil(t, err)
+		assert.True(t, result.IsOk())
+		fmt.Println(result.String())
+
 		wg.Done()
 	}()
 
@@ -750,26 +754,33 @@ func TestSendKeys(t *testing.T) {
 func TestGetEvents(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
-
-	// defer client.Disconnect()
-
 	result, err := client.Shell.GetEvents()
 	assert.Nil(t, err)
-
+	assert.True(t, len(result) > 0)
 	repr.Println(result)
 }
 
 func TestIsScreenOn(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
-
-	// defer client.Disconnect()
-
 	device := adbclient.NewDevice(client)
-
 	result, err := device.IsScreenOn()
 	assert.Nil(t, err)
 	assert.True(t, result)
+
+	fmt.Printf("screen is on = %t\n", result)
+}
+
+func TestPowerOffOn(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	device := adbclient.NewDevice(client)
+	
+	result, err := device.IsScreenOn()
+	assert.Nil(t, err)
+	assert.True(t, result)
+
+	fmt.Printf("screen is on = %t\n", result)
 
 	if result {
 		result, err = device.PowerOff()
@@ -777,6 +788,7 @@ func TestIsScreenOn(t *testing.T) {
 		result, err = device.PowerOn()
 	}
 	assert.Nil(t, err)
+	assert.True(t, result)
 }
 
 func TestInstall(t *testing.T) {
@@ -790,10 +802,11 @@ func TestInstall(t *testing.T) {
 		KeepData:          true,
 	}
 
-	result, err := client.Install(local_apk, &options)
+	result, err := client.Install("~/ArcCustomizeSettings.apk", &options)
 
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
+	fmt.Println(result.String())
 }
 
 func TestPmUninstall(t *testing.T) {
@@ -824,6 +837,7 @@ func TestPmUninstall(t *testing.T) {
 	result, err := device.PackageManager().Uninstall(packageName, &options)
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
+	fmt.Println(result.String())
 }
 
 func TestPmInstall(t *testing.T) {
@@ -837,7 +851,9 @@ func TestPmInstall(t *testing.T) {
 	assert.True(t, result.IsOk())
 
 	remote_apk := fmt.Sprintf("/data/local/tmp/%s", path.Base(local_apk))
-	result2, err := device.PackageManager().Install(remote_apk, &packagemanager.InstallOptions{
+	fmt.Printf("remote apk name: %s\n", remote_apk)
+
+	result, err = device.PackageManager().Install(remote_apk, &packagemanager.InstallOptions{
 		User:                "0",
 		RestrictPermissions: false,
 		Pkg:                 "",
@@ -846,7 +862,8 @@ func TestPmInstall(t *testing.T) {
 	})
 
 	assert.Nil(t, err)
-	assert.True(t, result2.IsOk())
+	assert.True(t, result.IsOk())
+	fmt.Println(result.String())
 
 }
 

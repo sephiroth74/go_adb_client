@@ -44,7 +44,7 @@ func (c Connection) NewProcessBuilder(verbose ...bool) *transport.ProcessBuilder
 }
 
 func (c Connection) Version() (string, error) {
-	cmd := c.NewAdbCommand().Withargs("--version")
+	cmd := c.NewAdbCommand().WithArgs("--version")
 	result, err := process.SimpleOutput(cmd, c.Verbose)
 	// result, err := c.NewProcessBuilder().WithCommand("--version").Invoke()
 	if err != nil {
@@ -64,7 +64,7 @@ func (c Connection) Version() (string, error) {
 }
 
 func (c Connection) Connect(addr string, timeout time.Duration) (process.OutputResult, error) {
-	cmd := c.NewAdbCommand().WithCommand("connect").Withargs(addr).WithTimeout(timeout)
+	cmd := c.NewAdbCommand().WithCommand("connect").WithArgs(addr).WithTimeout(timeout)
 	return process.SimpleOutput(cmd, c.Verbose)
 	// p := c.NewProcessBuilder().
 	// WithCommand("connect").
@@ -82,7 +82,7 @@ func (c Connection) Reconnect(addr string, timeout time.Duration) (transport.Res
 }
 
 func (c Connection) Disconnect(addr string) (process.OutputResult, error) {
-	cmd := c.NewAdbCommand().WithCommand("disconnect").Withargs(addr)
+	cmd := c.NewAdbCommand().WithCommand("disconnect").WithArgs(addr)
 	return process.SimpleOutput(cmd, c.Verbose)
 	// return c.NewProcessBuilder().
 	// WithCommand("disconnect").
@@ -107,7 +107,7 @@ func (c Connection) WaitForDevice(addr string, timeout time.Duration) (process.O
 	cmd := c.NewAdbCommand().WithSerial(addr).
 		WithTimeout(timeout).
 		WithCommand("wait-for-device").
-		Withargs("shell", "while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done; input keyevent 143")
+		WithArgs("shell", "while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done; input keyevent 143")
 	return process.SimpleOutput(cmd, c.Verbose)
 	// return c.NewProcessBuilder().
 	// 	WithSerialAddr(addr).
@@ -150,50 +150,50 @@ func (c Connection) Reboot(addr string) (process.OutputResult, error) {
 	cmd := c.NewAdbCommand().WithSerial(addr).WithCommand("reboot")
 	return process.SimpleOutput(cmd, c.Verbose)
 	// return c.NewProcessBuilder().
-		// WithSerialAddr(addr).
-		// WithCommand("reboot").
-		// Invoke()
+	// WithSerialAddr(addr).
+	// WithCommand("reboot").
+	// Invoke()
 }
 
 func (c Connection) Remount(addr string) (process.OutputResult, error) {
 	cmd := c.NewAdbCommand().WithSerial(addr).WithCommand("remount")
 	return process.SimpleOutput(cmd, c.Verbose)
 	// return c.NewProcessBuilder().
-		// WithSerialAddr(addr).
-		// WithCommand("remount").
-		// Invoke()
+	// WithSerialAddr(addr).
+	// WithCommand("remount").
+	// Invoke()
 }
 
 func (c Connection) Mount(addr string, dir string) (process.OutputResult, error) {
-	cmd := c.NewAdbCommand().WithSerial(addr).WithCommand("shell").Withargs(fmt.Sprintf("mount -o rw,remount %s", dir))
+	cmd := c.NewAdbCommand().WithSerial(addr).WithCommand("shell").WithArgs(fmt.Sprintf("mount -o rw,remount %s", dir))
 	return process.SimpleOutput(cmd, c.Verbose)
 	// return c.NewProcessBuilder().
-		// WithSerialAddr(addr).
-		// WithCommand("shell").
-		// WithArgs(fmt.Sprintf("mount -o rw,remount %s", dir)).Invoke()
+	// WithSerialAddr(addr).
+	// WithCommand("shell").
+	// WithArgs(fmt.Sprintf("mount -o rw,remount %s", dir)).Invoke()
 }
 
 func (c Connection) Unmount(addr string, dir string) (process.OutputResult, error) {
-	cmd := c.NewAdbCommand().WithSerial(addr).WithCommand("shell").Withargs(fmt.Sprintf("mount -o ro,remount %s", dir))
+	cmd := c.NewAdbCommand().WithSerial(addr).WithCommand("shell").WithArgs(fmt.Sprintf("mount -o ro,remount %s", dir))
 	return process.SimpleOutput(cmd, c.Verbose)
 	// return c.NewProcessBuilder().
-		// WithSerialAddr(addr).
-		// WithCommand("shell").
-		// WithArgs(fmt.Sprintf("mount -o ro,remount %s", dir)).
-		// Invoke()
+	// WithSerialAddr(addr).
+	// WithCommand("shell").
+	// WithArgs(fmt.Sprintf("mount -o ro,remount %s", dir)).
+	// Invoke()
 }
 
 func (c Connection) ListDevices() ([]*types.Device, error) {
 	cmd := c.NewAdbCommand().
 		WithCommand("devices").
-		Withargs("-l")
+		WithArgs("-l")
 
 	result, err := process.SimpleOutput(cmd, c.Verbose)
 
 	// result, err := c.NewProcessBuilder().
-		// WithCommand("devices").
-		// WithArgs("-l").
-		// Invoke()
+	// WithCommand("devices").
+	// WithArgs("-l").
+	// Invoke()
 
 	if err != nil {
 		return nil, err
@@ -234,35 +234,35 @@ func (c Connection) BugReport(addr string, dst string) *transport.ProcessBuilder
 }
 
 func (c Connection) Pull(addr string, src string, dst string) (process.OutputResult, error) {
-	cmd := c.NewAdbCommand().WithSerial(addr).WithCommand("pull").Withargs(src, dst)
+	cmd := c.NewAdbCommand().WithSerial(addr).WithCommand("pull").WithArgs(src, dst)
 	return process.SimpleOutput(cmd, c.Verbose)
 	// return c.NewProcessBuilder().
-		// WithSerialAddr(addr).
-		// WithCommand("pull").
-		// WithArgs(src, dst).
-		// Invoke()
+	// WithSerialAddr(addr).
+	// WithCommand("pull").
+	// WithArgs(src, dst).
+	// Invoke()
 }
 
 func (c Connection) Push(addr string, src string, dst string) (process.OutputResult, error) {
-	cmd := c.NewAdbCommand().WithSerial(addr).WithCommand("push").Withargs(src, dst)
+	cmd := c.NewAdbCommand().WithSerial(addr).WithCommand("push").WithArgs(src, dst)
 	return process.SimpleOutput(cmd, c.Verbose)
 	// return c.NewProcessBuilder().
-		// WithSerialAddr(addr).
-		// WithCommand("push").
-		// WithArgs(src, dst).
-		// Invoke()
+	// WithSerialAddr(addr).
+	// WithCommand("push").
+	// WithArgs(src, dst).
+	// Invoke()
 }
 
-func (c Connection) Install(addr string, src string, args ...string) (transport.Result, error) {
-	cmd := []string{"install"}
-	cmd = append(cmd, args...)
-	cmd = append(cmd, src)
-	return c.NewProcessBuilder().
-		WithSerialAddr(addr).
-		WithArgs(args...).
-		WithArgs(src).
-		WithCommand("install").
-		Invoke()
+func (c Connection) Install(addr string, src string, args ...string) (process.OutputResult, error) {
+	cmd := c.NewAdbCommand().WithCommand("install").WithSerial(addr).WithArgs(args...).AddArgs(src)
+	return process.SimpleOutput(cmd, c.Verbose)
+
+	// return c.NewProcessBuilder().
+	// 	WithSerialAddr(addr).
+	// 	WithArgs(args...).
+	// 	WithArgs(src).
+	// 	WithCommand("install").
+	// 	Invoke()
 }
 
 func (c Connection) Uninstall(addr string, packageName string, args ...string) (transport.Result, error) {

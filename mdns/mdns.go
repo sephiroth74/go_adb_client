@@ -23,12 +23,12 @@ func (m Mdns) Check() (transport.Result, error) {
 
 func (m Mdns) Services() ([]types.MdnsDevice, error) {
 	// adb-JA37001FF3	_adb._tcp.	192.168.1.105:5555
-	cmd := m.Conn.NewAdbCommand().WithCommand("mdns").Withargs("services")
+	cmd := m.Conn.NewAdbCommand().WithCommand("mdns").WithArgs("services")
 	result, err := process.SimpleOutput(cmd, m.Conn.Verbose)
 	// result, err := m.Conn.NewProcessBuilder().
-		// WithCommand("mdns").
-		// WithArgs("services").
-		// Invoke()
+	// WithCommand("mdns").
+	// WithArgs("services").
+	// Invoke()
 	if err != nil {
 		return nil, err
 	}

@@ -10,11 +10,13 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/sephiroth74/go-processbuilder"
 	streams "github.com/sephiroth74/go_streams"
 
 	"github.com/reactivex/rxgo/v2"
 	"github.com/sephiroth74/go_adb_client/connection"
 	"github.com/sephiroth74/go_adb_client/events"
+	"github.com/sephiroth74/go_adb_client/logging"
 	"github.com/sephiroth74/go_adb_client/mdns"
 	"github.com/sephiroth74/go_adb_client/process"
 	"github.com/sephiroth74/go_adb_client/shell"
@@ -38,6 +40,7 @@ func NewClient(device types.Serial, verbose bool) *Client {
 	client.Address = device
 	client.Channel = make(chan rxgo.Item)
 	client.Shell = shell.NewShell(client.Conn, device)
+	processbuilder.SetLogger(&logging.Log)
 	return client
 }
 
@@ -189,7 +192,7 @@ func (c Client) Push(src string, dst string) (process.OutputResult, error) {
 	return c.Conn.Push(c.Address.GetSerialAddress(), src, dst)
 }
 
-func (c Client) Install(src string, options *InstallOptions) (transport.Result, error) {
+func (c Client) Install(src string, options *InstallOptions) (process.OutputResult, error) {
 	var args []string
 	if options != nil {
 		if options.KeepData {

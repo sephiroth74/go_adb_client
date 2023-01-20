@@ -2,10 +2,12 @@ package packagemanager
 
 import (
 	"fmt"
-	"github.com/sephiroth74/go_adb_client/transport"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/sephiroth74/go_adb_client/process"
+	"github.com/sephiroth74/go_adb_client/transport"
 
 	"github.com/alecthomas/repr"
 	"github.com/sephiroth74/go_adb_client/shell"
@@ -34,8 +36,10 @@ func (p PackageManager) ListPackages(options PackageOptions) ([]Package, error) 
 }
 
 func (p PackageManager) IsSystem(name string) (bool, error) {
-	result, err := p.Shell.ExecuteWithTimeout(
-		fmt.Sprintf("pm dump %s | egrep '^ {1,}flags=' | egrep ' {1,}SYSTEM {1,}'", name), 0)
+	cmd := p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm dump %s | egrep '^ {1,}flags=' | egrep ' {1,}SYSTEM {1,}'", name))
+	result, err := process.SimpleOutput(cmd, p.Shell.Conn.Verbose)
+	// result, err := p.Shell.ExecuteWithTimeout(
+	// 	fmt.Sprintf("pm dump %s | egrep '^ {1,}flags=' | egrep ' {1,}SYSTEM {1,}'", name), 0)
 
 	if err != nil {
 		return false, err
@@ -87,7 +91,9 @@ func (p PackageManager) ListPackagesWithFilter(options PackageOptions, filter st
 		args = append(args, filter)
 	}
 
-	result, err := p.Shell.ExecuteWithTimeout("pm", 0, args...)
+	cmd := p.Shell.NewCommand().WithArgs("pm").AddArgs(args...)
+	result, err := process.SimpleOutput(cmd, p.Shell.Conn.Verbose)
+	// result, err := p.Shell.ExecuteWithTimeout("pm", 0, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +131,7 @@ func (p PackageManager) ListPackagesWithFilter(options PackageOptions, filter st
 	}
 }
 
-func (p PackageManager) Install(src string, options *InstallOptions) (transport.Result, error) {
+func (p PackageManager) Install(src string, options *InstallOptions) (process.OutputResult, error) {
 	var args []string
 	if options != nil {
 		if options.RestrictPermissions {
@@ -145,7 +151,9 @@ func (p PackageManager) Install(src string, options *InstallOptions) (transport.
 		}
 	}
 	args = append(args, src)
-	return p.Shell.ExecuteWithTimeout("cmd package install", 0, args...)
+	cmd := p.Shell.NewCommand().WithArgs("cmd package install").AddArgs(args...)
+	return process.SimpleOutput(cmd, p.Shell.Conn.Verbose)
+	// return p.Shell.ExecuteWithTimeout("cmd package install", 0, args...)
 }
 
 // Uninstall
@@ -157,7 +165,7 @@ func (p PackageManager) Install(src string, options *InstallOptions) (transport.
 // -k: keep the data and cache directories around after package removal.
 // --user: remove the app from the given user.
 // --versionCode: only uninstall if the app has the given version code.
-func (p PackageManager) Uninstall(packageName string, options *UninstallOptions) (transport.Result, error) {
+func (p PackageManager) Uninstall(packageName string, options *UninstallOptions) (process.OutputResult, error) {
 	var args []string
 	if options != nil {
 		if options.KeepData {
@@ -171,7 +179,9 @@ func (p PackageManager) Uninstall(packageName string, options *UninstallOptions)
 		}
 	}
 	args = append(args, packageName)
-	return p.Shell.ExecuteWithTimeout("cmd package uninstall", 0, args...)
+	cmd := p.Shell.NewCommand().WithArgs("cmd package uninstall").AddArgs(args...)
+	return process.SimpleOutput(cmd, p.Shell.Conn.Verbose)
+	// return p.Shell.ExecuteWithTimeout("cmd package uninstall", 0, args...)
 }
 
 func (p PackageManager) RuntimePermissions(packageName string) ([]types.PackagePermission, error) {

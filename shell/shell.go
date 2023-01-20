@@ -58,17 +58,17 @@ func (s Shell) newProcess() *transport.ProcessBuilder {
 }
 
 func (s Shell) Cat(filename string) (process.OutputResult, error) {
-	return process.SimpleOutput(s.NewCommand().Withargs("cat", filename), s.Conn.Verbose)
+	return process.SimpleOutput(s.NewCommand().WithArgs("cat", filename), s.Conn.Verbose)
 	// return s.ExecuteWithTimeout("cat", 0, filename)
 }
 
 func (s Shell) Whoami() (process.OutputResult, error) {
-	return process.SimpleOutput(s.NewCommand().Withargs("whoami"), s.Conn.Verbose)
+	return process.SimpleOutput(s.NewCommand().WithArgs("whoami"), s.Conn.Verbose)
 	// return s.ExecuteWithTimeout("whoami", 0)
 }
 
 func (s Shell) Which(command string) (process.OutputResult, error) {
-	cmd := s.NewCommand().Withargs("which", command)
+	cmd := s.NewCommand().WithArgs("which", command)
 	return process.SimpleOutput(cmd, s.Conn.Verbose)
 	// return s.ExecuteWithTimeout("which", 0, command)
 }
@@ -76,7 +76,7 @@ func (s Shell) Which(command string) (process.OutputResult, error) {
 // GetProp ExecuteWithTimeout the command "adb shell getprop key" and returns its value if found, nil otherwise
 // Deprecated use GetPropValue instead
 func (s Shell) GetProp(key string) *string {
-	result, err := process.SimpleOutput(s.NewCommand().Withargs("getprop", key), s.Conn.Verbose)
+	result, err := process.SimpleOutput(s.NewCommand().WithArgs("getprop", key), s.Conn.Verbose)
 	// result, err := s.ExecuteWithTimeout("getprop", 0, key)
 	if err != nil {
 		return nil
@@ -108,7 +108,7 @@ func (s Shell) GetPropValue(key string) (string, error) {
 // GetPropType Returns the property type.
 // Can be string, int, bool, enum [list string]
 func (s Shell) GetPropType(key string) (*string, bool) {
-	result, err := process.SimpleOutput(s.NewCommand().Withargs("getprop", "-T", key), s.Conn.Verbose)
+	result, err := process.SimpleOutput(s.NewCommand().WithArgs("getprop", "-T", key), s.Conn.Verbose)
 	// result, err := s.ExecuteWithTimeout("getprop", 0, "-T", key)
 	if err != nil {
 		return nil, false
@@ -123,7 +123,7 @@ func (s Shell) GetPropType(key string) (*string, bool) {
 }
 
 func (s Shell) GetProps() (*properties.Properties, error) {
-	result, err := process.SimpleOutput(s.NewCommand().Withargs("getprop"), s.Conn.Verbose)
+	result, err := process.SimpleOutput(s.NewCommand().WithArgs("getprop"), s.Conn.Verbose)
 	// result, err := s.ExecuteWithTimeout("getprop", 0)
 	if err != nil {
 		return nil, err
@@ -153,7 +153,7 @@ func (s Shell) SetProp(key string, value string) bool {
 		newvalue = "\"\""
 	}
 
-	result, err := process.SimpleOutput(s.NewCommand().Withargs("setprop", key, newvalue).WithTimeout(constants.DEFAULT_TIMEOUT), s.Conn.Verbose)
+	result, err := process.SimpleOutput(s.NewCommand().WithArgs("setprop", key, newvalue).WithTimeout(constants.DEFAULT_TIMEOUT), s.Conn.Verbose)
 	// result, err := s.ExecuteWithTimeout("setprop", constants.DEFAULT_TIMEOUT, key, newvalue)
 	if err != nil {
 		return false
@@ -190,7 +190,7 @@ func (s Shell) Remove(filename string, force bool) (bool, error) {
 		command = fmt.Sprintf("rm %s", filename)
 	}
 
-	cmd := s.NewCommand().Withargs(command)
+	cmd := s.NewCommand().WithArgs(command)
 	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
 	// result, err := s.ExecuteWithTimeout(command, 0)
 	if err != nil {
@@ -263,29 +263,36 @@ func (s Shell) Statf(format string, filename string) (string, error) {
 	return res.Output(), nil
 }
 
-func (s Shell) SendKeyEvent(event input.KeyCode) (transport.Result, error) {
+func (s Shell) SendKeyEvent(event input.KeyCode) (process.OutputResult, error) {
 	return s.SendKeyEvents(event)
 }
 
-func (s Shell) SendKeyEvents(events ...input.KeyCode) (transport.Result, error) {
+func (s Shell) SendKeyEvents(events ...input.KeyCode) (process.OutputResult, error) {
 	var format = make([]string, len(events))
 	for i, v := range events {
-		format[i] = fmt.Sprintf("%s", v.String())
+		format[i] = v.String()
 	}
-	return s.Executef("input keyevent %s", strings.Join(format, " "))
+
+	cmd := s.NewCommand().WithArgs(fmt.Sprintf("input keyevent %s", strings.Join(format, " ")))
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+	// return s.Executef("input keyevent %s", strings.Join(format, " "))
 }
 
 func (s Shell) SendChar(code rune) (transport.Result, error) {
 	return s.Executef("input text %c", code)
 }
 
-func (s Shell) SendString(value string) (transport.Result, error) {
-	return s.Executef("input text '%s'", value)
+func (s Shell) SendString(value string) (process.OutputResult, error) {
+	cmd := s.NewCommand().WithArgs(fmt.Sprintf("input text '%s'", value))
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+	// return s.Executef("input text '%s'", value)
 }
 
 // GetEvents Returns a slice of Pairs each one containing the event type and the event name
 func (s Shell) GetEvents() ([]types.Pair[string, string], error) {
-	result, err := s.ExecuteWithTimeout("getevent", 0, "-p")
+	cmd := s.NewCommand().WithArgs("getevent", "-p")
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
+	// result, err := s.ExecuteWithTimeout("getevent", 0, "-p")
 	if err != nil {
 		return nil, err
 	}
@@ -504,7 +511,7 @@ func parsePropLines(text string) ([]types.Pair[string, string], error) {
 }
 
 func testFile(shell Shell, filename string, mode string) bool {
-	cmd := shell.NewCommand().Withargs(fmt.Sprintf("test -%s %s && echo 1 || echo 0", mode, filename))
+	cmd := shell.NewCommand().WithArgs(fmt.Sprintf("test -%s %s && echo 1 || echo 0", mode, filename))
 	result, err := process.SimpleOutput(cmd, shell.Conn.Verbose)
 	// result, err := shell.ExecuteWithTimeout(fmt.Sprintf("test -%s %s && echo 1 || echo 0", mode, filename), 0)
 	if err != nil || !result.IsOk() {

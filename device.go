@@ -46,14 +46,14 @@ func (d Device) Version() *string {
 }
 
 func (d Device) SaveScreenCap(output string) (process.OutputResult, error) {
-	cmd := d.Client.Shell.NewCommand().Withargs("screencap", "-p", output)
+	cmd := d.Client.Shell.NewCommand().WithArgs("screencap", "-p", output)
 	return process.SimpleOutput(cmd, d.Client.Conn.Verbose)
 	// return d.Client.Shell.ExecuteWithTimeout("screencap", 0, "-p", output)
 }
 
 func (d Device) WriteScreenCap(output *os.File) (process.OutputResult, error) {
 	var writer io.Writer = bufio.NewWriter(output)
-	cmd := d.Client.NewAdbCommand().WithCommand("exec-out").Withargs("screencap", "-p").WithStdOut(writer)
+	cmd := d.Client.NewAdbCommand().WithCommand("exec-out").WithArgs("screencap", "-p").WithStdOut(writer)
 	return process.SimpleOutput(cmd, d.Client.Conn.Verbose)
 	// var pb = d.Client.NewProcess()
 	// pb.WithCommand("exec-out")
@@ -108,7 +108,9 @@ func (d Device) Power() (bool, error) {
 
 // IsScreenOn Return true if the device screen is on
 func (d Device) IsScreenOn() (bool, error) {
-	result, err := d.Client.Shell.ExecuteWithTimeout("dumpsys input_method | egrep 'screenOn *=' | sed 's/ *screenOn = \\(.*\\)/\\1/g'", 0)
+	cmd := d.Client.Shell.NewCommand().WithArgs("dumpsys input_method | egrep 'screenOn *=' | sed 's/ *screenOn = \\(.*\\)/\\1/g'")
+	result, err := process.SimpleOutput(cmd, d.Client.Shell.Conn.Verbose)
+	// result, err := d.Client.Shell.ExecuteWithTimeout("dumpsys input_method | egrep 'screenOn *=' | sed 's/ *screenOn = \\(.*\\)/\\1/g'", 0)
 	if err != nil {
 		return false, err
 	}

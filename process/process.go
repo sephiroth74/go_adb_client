@@ -53,7 +53,7 @@ func (a *ADBCommand) WithSerialAddr(t *types.Serial) *ADBCommand {
 	return a
 }
 
-func (a *ADBCommand) Withargs(args ...string) *ADBCommand {
+func (a *ADBCommand) WithArgs(args ...string) *ADBCommand {
 	a.Args = args
 	return a
 }
