@@ -3,6 +3,7 @@ package process
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ type ADBCommand struct {
 	ADBPath    string
 	ADBCommand string
 	Serial     string
+	StdOut     io.Writer
 	Args       []string
 	Timeout    time.Duration
 }
@@ -63,6 +65,11 @@ func (a *ADBCommand) AddArgs(args ...string) *ADBCommand {
 
 func (a *ADBCommand) WithTimeout(time time.Duration) *ADBCommand {
 	a.Timeout = time
+	return a
+}
+
+func (a *ADBCommand) WithStdOut(writer io.Writer) *ADBCommand {
+	a.StdOut = writer
 	return a
 }
 
@@ -133,9 +140,15 @@ func SimpleOutput(command *ADBCommand, verbose bool) (OutputResult, error) {
 		option.LogLevel = zerolog.Disabled
 	}
 
+	cmd := processbuilder.Command(command.ADBPath, command.FullArgs()...)
+
+	if command.StdOut != nil {
+		cmd.WithStdOut(command.StdOut)
+	}
+
 	sout, serr, code, err := processbuilder.Output(
 		option,
-		processbuilder.Command(command.ADBPath, command.FullArgs()...),
+		cmd,
 	)
 
 	if sout == nil {

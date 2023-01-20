@@ -594,6 +594,18 @@ func TestWriteScreenCap(t *testing.T) {
 	os.RemoveAll(target_dir)
 }
 
+func TestFile(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	if _, err := client.Root(); err != nil {
+		assert.Fail(t, "failed to root")
+	}
+
+	exists := client.Shell.Exists("/system/build.prop")
+	assert.True(t, exists)
+}
+
 func TestSaveScreenCap(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)

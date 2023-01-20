@@ -45,6 +45,10 @@ func NullClient(verbose bool) *Client {
 	return NewClient(types.ClientAddr{IP: net.IPv4(127, 0, 0, 1), Port: 5555}, verbose)
 }
 
+func (c Client) NewAdbCommand() *process.ADBCommand {
+	return c.Conn.NewAdbCommand().WithSerialAddr(&c.Address)
+}
+
 func (c Client) NewProcess() *transport.ProcessBuilder {
 	return c.Conn.NewProcessBuilder().WithSerial(&c.Address)
 }

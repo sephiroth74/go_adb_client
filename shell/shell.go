@@ -189,7 +189,10 @@ func (s Shell) Remove(filename string, force bool) (bool, error) {
 	} else {
 		command = fmt.Sprintf("rm %s", filename)
 	}
-	result, err := s.ExecuteWithTimeout(command, 0)
+
+	cmd := s.NewCommand().Withargs(command)
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
+	// result, err := s.ExecuteWithTimeout(command, 0)
 	if err != nil {
 		return false, nil
 	}
@@ -501,7 +504,9 @@ func parsePropLines(text string) ([]types.Pair[string, string], error) {
 }
 
 func testFile(shell Shell, filename string, mode string) bool {
-	result, err := shell.ExecuteWithTimeout(fmt.Sprintf("test -%s %s && echo 1 || echo 0", mode, filename), 0)
+	cmd := shell.NewCommand().Withargs(fmt.Sprintf("test -%s %s && echo 1 || echo 0", mode, filename))
+	result, err := process.SimpleOutput(cmd, shell.Conn.Verbose)
+	// result, err := shell.ExecuteWithTimeout(fmt.Sprintf("test -%s %s && echo 1 || echo 0", mode, filename), 0)
 	if err != nil || !result.IsOk() {
 		return false
 	}
