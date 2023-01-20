@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/sephiroth74/go-processbuilder"
@@ -277,6 +279,56 @@ func (c Client) Logcat(options types.LogcatOptions) (process.OutputResult, error
 
 	return process.SimpleOutput(cmd, c.Conn.Verbose)
 	// return pb.Invoke()
+}
+
+func (c Client) LogcatPipe(options types.LogcatOptions, cs chan os.Signal) (*processbuilder.Processbuilder, error) {
+	var args []string
+
+	if options.Expr != "" {
+		args = append(args, "-e", options.Expr)
+	}
+
+	if options.Format != "" {
+		args = append(args, "-v", options.Format)
+	}
+
+	if len(options.Pids) > 0 {
+		args = append(args, "--pid")
+		args = append(args, options.Pids...)
+	}
+
+	if options.Since != nil {
+		args = append(args, "-T")
+		args = append(args, options.Since.Format("01-02 15:04:05.000"))
+	}
+
+	if len(options.Tags) > 0 {
+		tags := streams.Map(options.Tags, func(tag types.LogcatTag) string {
+			return tag.String()
+		})
+		args = append(args, fmt.Sprintf("%s *:S", strings.Join(tags, " ")))
+		// args = append(args, tags...)
+		// args = append(args, "*:S")
+	}
+
+	pb := c.NewAdbCommand().WithArgs(args...).WithCommand("logcat")
+
+	if options.Timeout > 0 {
+		pb.WithTimeout(options.Timeout)
+	}
+
+	cmd := pb.ToCommand()
+
+	p, err := processbuilder.Pipe(
+		processbuilder.Option{Close: &cs, Timeout: pb.Timeout},
+		cmd,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return p, nil
 }
 
 func (c Client) LogcatCommand(options types.LogcatOptions) (*exec.Cmd, context.CancelFunc, error) {

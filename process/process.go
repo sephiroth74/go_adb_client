@@ -87,6 +87,14 @@ func (a *ADBCommand) FullArgs() []string {
 	return args
 }
 
+func (a *ADBCommand) ToCommand() *processbuilder.Command {
+	cmd := processbuilder.NewCommand(a.ADBPath, a.FullArgs()...)
+	if a.StdOut != nil {
+		cmd.WithStdOut(a.StdOut)
+	}
+	return cmd
+}
+
 func NewSuccessOutputResult(message string) OutputResult {
 	return OutputResult{ExitCode: 0, StdOut: *bytes.NewBufferString(message)}
 }
@@ -140,7 +148,7 @@ func SimpleOutput(command *ADBCommand, verbose bool) (OutputResult, error) {
 		option.LogLevel = zerolog.Disabled
 	}
 
-	cmd := processbuilder.Command(command.ADBPath, command.FullArgs()...)
+	cmd := processbuilder.NewCommand(command.ADBPath, command.FullArgs()...)
 
 	if command.StdOut != nil {
 		cmd.WithStdOut(command.StdOut)

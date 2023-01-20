@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sephiroth74/go-processbuilder"
 	"github.com/sephiroth74/go_adb_client/scanner"
 	"github.com/sephiroth74/go_adb_client/shell"
 	"github.com/sephiroth74/go_adb_client/transport"
@@ -1190,6 +1191,61 @@ func TestLogcatPipe(t *testing.T) {
 	if err := cmd.Wait(); err != nil {
 		fmt.Println(err)
 	}
+
+	fmt.Println("ok done")
+}
+
+func TestLogcatProcessPipe(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	defer close(c)
+
+	since := time.Now().Add(-2 * time.Hour)
+
+	pb, err := client.LogcatPipe(types.LogcatOptions{
+		Format: "pid",
+		Since:  &since,
+		Tags: []types.LogcatTag{
+			{
+				Name:  "tvlib.RestClient",
+				Level: types.LogcatVerbose,
+			},
+		},
+		Timeout: 20 * time.Second,
+	}, c)
+
+	if err != nil {
+		panic(err)
+	}
+
+	pipeOutput := pb.StdoutPipe
+	fmt.Printf("pipeOutput: %s\n", pipeOutput)
+
+	err = processbuilder.Start(pb)
+	assert.Nil(t, err)
+
+	fmt.Println("Now starting the scanner...")
+
+	scanner := bufio.NewScanner(pipeOutput)
+	for scanner.Scan() {
+		text := scanner.Text()
+		fmt.Println(text)
+		c <- os.Interrupt
+
+		break
+
+		// fmt.Println("******** OK DONE!!!! **************")
+		// processbuilder.Cancel(pb)
+		// break
+		// }
+	}
+
+	exit, _, err := processbuilder.Wait(pb)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, exit)
 
 	fmt.Println("ok done")
 }
