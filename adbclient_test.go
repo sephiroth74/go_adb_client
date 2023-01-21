@@ -435,7 +435,7 @@ func TestWhich(t *testing.T) {
 
 	if err != nil {
 		fmt.Println(err.Error())
-	}	
+	}
 
 	fmt.Println(result2)
 
@@ -1324,12 +1324,16 @@ func TestLogcatProcessPipe(t *testing.T) {
 	fmt.Println("Now starting the scanner...")
 
 	scanner := bufio.NewScanner(pipeOutput)
+	scanned := 0
 	for scanner.Scan() {
 		text := scanner.Text()
 		fmt.Println(text)
-		c <- os.Interrupt
 
-		break
+		scanned += 1
+		if scanned > 5 {
+			// c <- os.Interrupt
+			break
+		}
 
 		// fmt.Println("******** OK DONE!!!! **************")
 		// processbuilder.Cancel(pb)
