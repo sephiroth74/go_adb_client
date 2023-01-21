@@ -13,6 +13,8 @@ require (
 	pkg.re/essentialkaos/ek.v12 v12.41.0+incompatible
 )
 
+// replace github.com/sephiroth74/go-processbuilder => /Users/alessandro/Documents/git/sephiroth74/go-processbuilder
+
 require (
 	github.com/cenkalti/backoff/v4 v4.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -21,7 +23,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/sephiroth74/go-processbuilder v0.0.10
+	github.com/sephiroth74/go-processbuilder v0.0.11
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/teivah/onecontext v1.3.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
