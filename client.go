@@ -322,7 +322,7 @@ func (c Client) LogcatPipe(options types.LogcatOptions, cs chan os.Signal) (*pro
 
 	cmd := pb.ToCommand()
 
-	p, err := processbuilder.Pipe(
+	p, err := processbuilder.PipeOutput(
 		processbuilder.Option{Close: &cs, Timeout: pb.Timeout},
 		cmd,
 	)
