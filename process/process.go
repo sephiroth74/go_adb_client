@@ -11,7 +11,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/sephiroth74/go-processbuilder"
-	"github.com/sephiroth74/go_adb_client/logging"
 	"github.com/sephiroth74/go_adb_client/types"
 	streams "github.com/sephiroth74/go_streams"
 )
