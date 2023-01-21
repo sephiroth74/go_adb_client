@@ -201,7 +201,7 @@ func TestRecordScreen(t *testing.T) {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	defer close(c)
 
-	result, err := device.Client.Shell.ScreenRecord(shell.ScreenRecordOptions{
+	pb, err := device.Client.Shell.ScreenRecord(shell.ScreenRecordOptions{
 		Bitrate:   8000000,
 		Timelimit: 5,
 		Rotate:    false,
@@ -210,14 +210,22 @@ func TestRecordScreen(t *testing.T) {
 		Verbose:   false,
 	}, c, "/sdcard/Download/screenrecord.mp4")
 
+	err = processbuilder.Start(pb)
+
+	go func() {
+		<-c
+		println("user: cancelled")
+		processbuilder.Cancel(pb)
+	}()
+
+	code, _, err := processbuilder.Wait(pb)
+
 	if err != nil {
-		assert.Equal(t, int(unix.SIGINT), result.ExitCode)
+		assert.Equal(t, int(unix.SIGINT), code)
 	}
 
-	if result.ExitCode != int(unix.SIGINT) {
-		assert.True(t, result.IsOk())
-		println(result.Output())
-		println(result.Error())
+	if code != int(unix.SIGINT) {
+		println(err.Error())
 	}
 }
 

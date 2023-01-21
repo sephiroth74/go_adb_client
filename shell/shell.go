@@ -7,8 +7,10 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/magiconair/properties"
+	"github.com/sephiroth74/go-processbuilder"
 	"github.com/sephiroth74/go_adb_client/connection"
 	"github.com/sephiroth74/go_adb_client/process"
 	streams "github.com/sephiroth74/go_streams"
@@ -281,12 +283,14 @@ func (s Shell) GetEvents() ([]types.Pair[string, string], error) {
 	return arr, nil
 }
 
-func (s Shell) ScreenRecord(options ScreenRecordOptions, c chan os.Signal, filename string) (process.OutputResult, error) {
+func (s Shell) ScreenRecord(options ScreenRecordOptions, filename string) (*processbuilder.Processbuilder, error) {
 	args := []string{"screenrecord"}
 	args = append(args, "--bit-rate", fmt.Sprintf("%d", options.Bitrate))
+	poption := processbuilder.Option{}
 
 	if options.Timelimit > 0 {
 		args = append(args, "--time-limit", fmt.Sprintf("%d", options.Timelimit))
+		poption.Timeout = time.Second * time.Duration(options.Timelimit)
 	}
 
 	if options.Rotate {
@@ -307,7 +311,10 @@ func (s Shell) ScreenRecord(options ScreenRecordOptions, c chan os.Signal, filen
 
 	args = append(args, filename)
 
-	return process.SimpleOutput(s.NewCommand().WithArgs(args...).WithCancel(c), s.Conn.Verbose)
+	return processbuilder.Create(
+		poption,
+		s.NewCommand().WithArgs(args...).ToCommand(),
+	)
 }
 
 func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
@@ -328,7 +335,7 @@ func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
 
 	parser := types.DefaultDeviceFileParser{}
 
-	deviceFiles := streams.MapNotNull(result.OutputLines(), func(line string) (types.DeviceFile, error) {
+	deviceFiles := streams.MapNotNull(result.OutputLines(false), func(line string) (types.DeviceFile, error) {
 		return parser.Parse(dirname, line, "")
 	})
 
@@ -444,7 +451,7 @@ func (s Shell) ListDumpSys() ([]string, error) {
 		return emptylist, result.NewError()
 	}
 
-	return result.OutputLines(), nil
+	return result.OutputLines(false), nil
 }
 
 //

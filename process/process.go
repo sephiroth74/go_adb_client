@@ -35,16 +35,10 @@ type ADBCommand struct {
 	StdOut     io.Writer
 	Args       []string
 	Timeout    time.Duration
-	Cancel     chan os.Signal
 }
 
 func NewADBCommand(path string) *ADBCommand {
 	return &ADBCommand{ADBPath: path, Timeout: 0}
-}
-
-func (a *ADBCommand) WithCancel(c chan os.Signal) *ADBCommand {
-	a.Cancel = c
-	return a
 }
 
 func (a *ADBCommand) WithCommand(command string) *ADBCommand {
@@ -113,9 +107,10 @@ func NewErrorOutputResult(message string) OutputResult {
 }
 
 type OutputResult struct {
-	ExitCode int
-	StdOut   bytes.Buffer
-	StdErr   bytes.Buffer
+	ExitCode   int
+	ExitStatus *os.ProcessState
+	StdOut     bytes.Buffer
+	StdErr     bytes.Buffer
 }
 
 func (o OutputResult) IsOk() bool {
@@ -142,24 +137,24 @@ func (o OutputResult) Output() string {
 	return strings.TrimSpace(o.StdOut.String())
 }
 
-func (o OutputResult) OutputLines() []string {
+func (o OutputResult) OutputLines(trim bool) []string {
 	splitted := strings.Split(o.StdOut.String(), "\n")
-	return streams.Map(splitted, func(line string) string {
-		return strings.TrimSpace(line)
-	})
+	if trim {
+		return streams.Map(splitted, func(line string) string {
+			return strings.TrimSpace(line)
+		})
+	} else {
+		return splitted
+	}
 }
 
 func (o OutputResult) String() string {
-	return fmt.Sprintf("OutputResult(isOk=`%t`, Stdout=`%s`, Stderr=`%s`, ExitCode=%d)", o.IsOk(), o.Output(), o.Error(), o.ExitCode)
+	return fmt.Sprintf("OutputResult(isOk=`%t`, Stdout=`%s`, Stderr=`%s`, ExitCode=%d, ExitStatus=%#v)", o.IsOk(), o.Output(), o.Error(), o.ExitCode, o.ExitStatus)
 }
 
 func SimpleOutput(command *ADBCommand, verbose bool) (OutputResult, error) {
 	option := processbuilder.Option{
 		Timeout: command.Timeout,
-	}
-
-	if command.Cancel != nil {
-		option.Close = &command.Cancel
 	}
 
 	if verbose {
@@ -178,7 +173,7 @@ func SimpleOutput(command *ADBCommand, verbose bool) (OutputResult, error) {
 		cmd.WithStdOut(command.StdOut)
 	}
 
-	sout, serr, code, err := processbuilder.Output(
+	sout, serr, code, state, err := processbuilder.Output(
 		option,
 		cmd,
 	)
@@ -192,9 +187,10 @@ func SimpleOutput(command *ADBCommand, verbose bool) (OutputResult, error) {
 	}
 
 	result := OutputResult{
-		ExitCode: code,
-		StdOut:   *sout,
-		StdErr:   *serr,
+		ExitCode:   code,
+		ExitStatus: state,
+		StdOut:     *sout,
+		StdErr:     *serr,
 	}
 
 	return result, err

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"strings"
 	"time"
 
@@ -284,7 +283,7 @@ func (c Client) Logcat(options types.LogcatOptions) (process.OutputResult, error
 	// return pb.Invoke()
 }
 
-func (c Client) LogcatPipe(options types.LogcatOptions, cs chan os.Signal) (*processbuilder.Processbuilder, error) {
+func (c Client) LogcatPipe(options types.LogcatOptions) (*processbuilder.Processbuilder, error) {
 	var args []string
 
 	if options.Expr != "" {
@@ -310,8 +309,6 @@ func (c Client) LogcatPipe(options types.LogcatOptions, cs chan os.Signal) (*pro
 			return tag.String()
 		})
 		args = append(args, fmt.Sprintf("%s *:S", strings.Join(tags, " ")))
-		// args = append(args, tags...)
-		// args = append(args, "*:S")
 	}
 
 	pb := c.NewAdbCommand().WithArgs(args...).WithCommand("logcat")
@@ -323,7 +320,7 @@ func (c Client) LogcatPipe(options types.LogcatOptions, cs chan os.Signal) (*pro
 	cmd := pb.ToCommand()
 
 	p, err := processbuilder.PipeOutput(
-		processbuilder.Option{Close: &cs, Timeout: pb.Timeout},
+		processbuilder.Option{Timeout: pb.Timeout},
 		cmd,
 	)
 

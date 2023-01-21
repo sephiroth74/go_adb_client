@@ -122,7 +122,7 @@ func (p PackageManager) ListPackagesWithFilter(options PackageOptions, filter st
 		f := regexp.MustCompile(`package:(.*\.apk)=([^\s]+)\s*(versionCode|uid):([^\s]+)\s+(versionCode|uid):([^\s]+)$`)
 		var packages = []Package{}
 
-		for _, line := range result.OutputLines() {
+		for _, line := range result.OutputLines(false) {
 			m := f.FindStringSubmatch(line)
 			if len(m) == 7 {
 				var versionCode string
@@ -223,7 +223,7 @@ func (p PackageManager) RuntimePermissions(packageName string) ([]types.PackageP
 
 			f = regexp.MustCompile(`(?m)^\s*([^:]+):\s+granted=(false|true),\s+flags=\[\s*([^\]]+)\]$`)
 			match := f.FindAllStringSubmatch(data, -1)
-			if match != nil {
+			if len(match) > 0 {
 				for _, v := range match {
 					name := v[1]
 					granted := v[2]
