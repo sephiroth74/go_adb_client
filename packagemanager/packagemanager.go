@@ -290,6 +290,11 @@ func (p PackageManager) Clear(packageName string) (process.OutputResult, error) 
 	return process.SimpleOutput(cmd, p.Shell.Conn.Verbose)
 }
 
+func (p PackageManager) ClearWithUser(packageName string, user string) (process.OutputResult, error) {
+	cmd := p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm clear --user %s %s", user, packageName))
+	return process.SimpleOutput(cmd, p.Shell.Conn.Verbose)
+}
+
 func (p PackageManager) GrantPermission(packageName string, permission string) (process.OutputResult, error) {
 	return process.SimpleOutput(p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm grant %s %s", packageName, permission)), p.Shell.Conn.Verbose)
 }
@@ -303,9 +308,25 @@ func (p PackageManager) Enable(packageName string) (process.OutputResult, error)
 	return process.SimpleOutput(p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm enable %s", packageName)), p.Shell.Conn.Verbose)
 }
 
+func (p PackageManager) EnableWithUser(packageName string, user string) (process.OutputResult, error) {
+	return process.SimpleOutput(p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm enable --user %s %s", user, packageName)), p.Shell.Conn.Verbose)
+}
+
 // Disable disable a package
 func (p PackageManager) Disable(packageName string) (process.OutputResult, error) {
 	return process.SimpleOutput(p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm disable %s", packageName)), p.Shell.Conn.Verbose)
+}
+
+func (p PackageManager) DisableWithUser(packageName string, user string) (process.OutputResult, error) {
+	return process.SimpleOutput(p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm disable --user %s %s", user, packageName)), p.Shell.Conn.Verbose)
+}
+
+func (p PackageManager) RestoreDefaultState(packageName string) (process.OutputResult, error) {
+	return process.SimpleOutput(p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm default-state %s", packageName)), p.Shell.Conn.Verbose)
+}
+
+func (p PackageManager) RestoreDefaultStateWithUSer(packageName string, user string) (process.OutputResult, error) {
+	return process.SimpleOutput(p.Shell.NewCommand().WithArgs(fmt.Sprintf("pm default-state --user %s %s", user, packageName)), p.Shell.Conn.Verbose)
 }
 
 type UninstallOptions struct {
