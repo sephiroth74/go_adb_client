@@ -2,12 +2,13 @@ package adbclient
 
 import (
 	"bufio"
+	"io"
+	"os"
+
 	"github.com/sephiroth74/go_adb_client/activitymanager"
 	"github.com/sephiroth74/go_adb_client/input"
 	"github.com/sephiroth74/go_adb_client/packagemanager"
-	"github.com/sephiroth74/go_adb_client/transport"
-	"io"
-	"os"
+	"github.com/sephiroth74/go_adb_client/process"
 )
 
 type Device struct {
@@ -44,17 +45,21 @@ func (d Device) Version() *string {
 	return d.Client.Shell.GetProp("ro.build.version.release")
 }
 
-func (d Device) SaveScreenCap(output string) (transport.Result, error) {
-	return d.Client.Shell.ExecuteWithTimeout("screencap", 0, "-p", output)
+func (d Device) SaveScreenCap(output string) (process.OutputResult, error) {
+	cmd := d.Client.Shell.NewCommand().WithArgs("screencap", "-p", output)
+	return process.SimpleOutput(cmd, d.Client.Conn.Verbose)
+	// return d.Client.Shell.ExecuteWithTimeout("screencap", 0, "-p", output)
 }
 
-func (d Device) WriteScreenCap(output *os.File) (transport.Result, error) {
-	var pb = d.Client.NewProcess()
+func (d Device) WriteScreenCap(output *os.File) (process.OutputResult, error) {
 	var writer io.Writer = bufio.NewWriter(output)
-	pb.WithCommand("exec-out")
-	pb.WithArgs("screencap", "-p")
-	pb.WithStdout(&writer)
-	return pb.Invoke()
+	cmd := d.Client.NewAdbCommand().WithCommand("exec-out").WithArgs("screencap", "-p").WithStdOut(writer)
+	return process.SimpleOutput(cmd, d.Client.Conn.Verbose)
+	// var pb = d.Client.NewProcess()
+	// pb.WithCommand("exec-out")
+	// pb.WithArgs("screencap", "-p")
+	// pb.WithStdout(&writer)
+	// return pb.Invoke()
 }
 
 // PowerOffOn send the power button input key
@@ -103,7 +108,9 @@ func (d Device) Power() (bool, error) {
 
 // IsScreenOn Return true if the device screen is on
 func (d Device) IsScreenOn() (bool, error) {
-	result, err := d.Client.Shell.ExecuteWithTimeout("dumpsys input_method | egrep 'screenOn *=' | sed 's/ *screenOn = \\(.*\\)/\\1/g'", 0)
+	cmd := d.Client.Shell.NewCommand().WithArgs("dumpsys input_method | egrep 'screenOn *=' | sed 's/ *screenOn = \\(.*\\)/\\1/g'")
+	result, err := process.SimpleOutput(cmd, d.Client.Shell.Conn.Verbose)
+	// result, err := d.Client.Shell.ExecuteWithTimeout("dumpsys input_method | egrep 'screenOn *=' | sed 's/ *screenOn = \\(.*\\)/\\1/g'", 0)
 	if err != nil {
 		return false, err
 	}

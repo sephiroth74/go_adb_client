@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -17,9 +18,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sephiroth74/go-processbuilder"
+	"github.com/sephiroth74/go_adb_client/process"
 	"github.com/sephiroth74/go_adb_client/scanner"
 	"github.com/sephiroth74/go_adb_client/shell"
-	"github.com/sephiroth74/go_adb_client/transport"
 	streams "github.com/sephiroth74/go_streams"
 	"golang.org/x/sys/unix"
 	"pkg.re/essentialkaos/ek.v12/path"
@@ -36,12 +38,13 @@ import (
 	"github.com/sephiroth74/go_adb_client/mdns"
 	"github.com/sephiroth74/go_adb_client/packagemanager"
 	"github.com/sephiroth74/go_adb_client/types"
+	"gopkg.in/pipe.v2"
 )
 
-var device_ip2 = net.IPv4(192, 168, 1, 101)
+var device_ip2 = net.IPv4(192, 168, 1, 128)
 var device_ip = device_ip2
 
-var local_apk = ""
+var local_apk = "~/ArcCustomizeSettings.apk"
 
 func init() {
 }
@@ -54,6 +57,59 @@ func AssertClientConnected(t *testing.T, client *adbclient.Client) {
 	result, err := client.Connect(5 * time.Second)
 	assert.Nil(t, err, "Error connecting to %s", client.Address.String())
 	assert.True(t, result.IsOk(), "Error: %s", result.Error())
+}
+
+func TestReconnect(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	result, err := client.Reconnect(types.ReconnectToDevice, 5*time.Second)
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+	fmt.Println(result.String())
+}
+
+func TestIsRoot(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	_, err := client.IsRoot()
+	assert.Nil(t, err)
+
+	err = client.UnRoot()
+	assert.Nil(t, err)
+
+	value, err := client.IsRoot()
+	assert.Nil(t, err)
+	assert.False(t, value)
+
+	err = client.Root()
+	assert.Nil(t, err)
+
+	value, err = client.IsRoot()
+	assert.Nil(t, err)
+	assert.True(t, value)
+}
+
+func TestGetState(t *testing.T) {
+	var client = NewClient()
+	res, err := client.IsConnected()
+	assert.Nil(t, err)
+	assert.True(t, res)
+}
+
+func TestWithPipe(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	p1 := pipe.Exec("adb", "logcat")
+	p := pipe.Line(
+		p1,
+		pipe.Write(os.Stdout),
+	)
+
+	err := pipe.Run(p)
+	assert.Nil(t, err)
 }
 
 func TestBugReport(t *testing.T) {
@@ -74,12 +130,16 @@ func TestStdout(t *testing.T) {
 	s := bytes.NewBufferString("")
 	var w io.Writer = bufio.NewWriter(s)
 
-	result, err := client.Shell.NewProcess().WithArgs("nproc").WithStdout(&w).Invoke()
+	result, err := process.SimpleOutput(client.Shell.NewCommand().WithArgs("nproc").WithStdOut(w), true)
+
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 	assert.True(t, result.Output() == "")
 	assert.True(t, result.Error() == "")
 	assert.True(t, s.Len() > 0)
+
+	fmt.Println(result.String())
+	fmt.Println(s)
 }
 
 func TestIsConnected(t *testing.T) {
@@ -94,14 +154,28 @@ func TestIsConnected(t *testing.T) {
 	assert.True(t, conn)
 }
 
+func TestActivityManagerForceStop(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	device := adbclient.NewDevice(client)
+	client.Root()
+
+	err := device.ActivityManager().ForceStop("com.google.android.tvlauncher")
+	assert.Nil(t, err)
+
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+}
+
 func TestDirWalk(t *testing.T) {
 	var client = NewClient()
 	AssertClientConnected(t, client)
 
 	var device = adbclient.NewDevice(client)
-	root, err := device.Client.Root()
+	err := device.Client.Root()
 	assert.Nil(t, err)
-	assert.True(t, root.IsOk())
 
 	dirname := "/sdcard/"
 	result, err := device.Client.Shell.ListDir(dirname)
@@ -121,30 +195,37 @@ func TestRecordScreen(t *testing.T) {
 
 	var device = adbclient.NewDevice(client)
 
-	var result transport.Result
 	var err error
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	defer close(c)
 
-	result, err = device.Client.Shell.ScreenRecord(shell.ScreenRecordOptions{
+	pb, err := device.Client.Shell.ScreenRecord(shell.ScreenRecordOptions{
 		Bitrate:   8000000,
 		Timelimit: 5,
 		Rotate:    false,
 		BugReport: false,
 		Size:      &types.Size{Width: 1920, Height: 1080},
 		Verbose:   false,
-	}, c, "/sdcard/Download/screenrecord.mp4")
+	}, "/sdcard/Download/screenrecord.mp4")
+
+	err = processbuilder.Start(pb)
+
+	go func() {
+		<-c
+		println("user: cancelled")
+		processbuilder.Cancel(pb)
+	}()
+
+	code, _, err := processbuilder.Wait(pb)
 
 	if err != nil {
-		assert.Equal(t, int(unix.SIGINT), result.ExitCode)
+		assert.Equal(t, int(unix.SIGINT), code)
 	}
 
-	if result.ExitCode != int(unix.SIGINT) {
-		assert.True(t, result.IsOk())
-		println(result.Output())
-		println(result.Error())
+	if code != int(unix.SIGINT) {
+		println(err.Error())
 	}
 }
 
@@ -152,7 +233,7 @@ func TestConnect(t *testing.T) {
 	var client = NewClient()
 
 	result, err := client.Connect(5 * time.Second)
-	logging.Log.Debug().Msgf("result=%s", result.ToString())
+	logging.Log.Debug().Msgf("result=%s", result.String())
 	assert.Nil(t, err)
 	assert.Equal(t, true, result.IsOk())
 
@@ -179,18 +260,14 @@ func TestWaitForDevice(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, true, result.IsOk())
 
-	result, err = client.WaitForDeviceWithTimeout(connection.WaitForDeviceTimeout)
+	result, err = client.WaitForDevice(1 * time.Minute)
 	assert.Nil(t, err)
-	println(result.ToString())
+	println(result.String())
 	assert.Equal(t, true, result.IsOk())
 
 	connected, err := client.IsConnected()
 	assert.Nil(t, err)
 	assert.Equal(t, true, connected)
-
-	is_root, err := client.IsRoot()
-	assert.Nil(t, err)
-	assert.True(t, is_root)
 
 	result, err = client.Disconnect()
 	assert.Nil(t, err)
@@ -201,17 +278,15 @@ func TestRoot(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	result, err := client.Root()
+	err := client.Root()
 	assert.Nil(t, err)
-	assert.True(t, result.IsOk())
 
 	value, err := client.IsRoot()
 	assert.Nil(t, err)
 	assert.True(t, value)
 
-	result, err = client.UnRoot()
+	err = client.UnRoot()
 	assert.Nil(t, err)
-	assert.True(t, result.IsOk())
 
 	value, err = client.IsRoot()
 	assert.Nil(t, err)
@@ -225,7 +300,7 @@ func TestListDevices(t *testing.T) {
 
 	if err == nil {
 		for x := 0; x < len(list); x++ {
-			logging.Log.Debug().Msgf("Device: %#v\n", list[x])
+			logging.Log.Debug().Msgf("Device: %s\n", list[x].String())
 		}
 	}
 }
@@ -242,7 +317,7 @@ func TestReboot(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
-	result, err = client.WaitForDeviceWithTimeout(time.Duration(2) * time.Minute)
+	result, err = client.WaitForDevice(2 * time.Minute)
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
@@ -259,17 +334,17 @@ func TestRemount(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, conn)
 
-	result, err := client.Root()
+	err = client.Root()
 	assert.Nil(t, err)
-	assert.True(t, result.IsOk())
 
 	conn, err = client.IsRoot()
 	assert.Nil(t, err)
 	assert.True(t, conn)
 
-	result, err = client.Remount()
+	result, err := client.Remount()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
+	logging.Log.Debug().Msg(result.String())
 
 	result, err = client.Unmount("/system")
 	if err != nil {
@@ -277,6 +352,7 @@ func TestRemount(t *testing.T) {
 	}
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
+	logging.Log.Debug().Msg(result.String())
 }
 
 func TestGetVersion(t *testing.T) {
@@ -287,7 +363,7 @@ func TestGetVersion(t *testing.T) {
 	logging.Log.Debug().Msgf("adb version=%s", result)
 }
 
-func TestMdns(t *testing.T) {
+func TestMdnsServices(t *testing.T) {
 	var mdns = mdns.NewMdns(connection.NewConnection(true))
 	result, err := mdns.Check()
 	assert.Nil(t, err)
@@ -295,7 +371,6 @@ func TestMdns(t *testing.T) {
 
 	devices, err := mdns.Services()
 	assert.Nil(t, err)
-
 	logging.Log.Debug().Msgf("Found %d devices", len(devices))
 
 	for i := 0; i < len(devices); i++ {
@@ -305,9 +380,9 @@ func TestMdns(t *testing.T) {
 	assert.True(t, len(devices) > 0)
 
 	client2 := adbclient.NewClient(devices[1], true)
-	result, err = client2.Connect(5 * time.Second)
+	result2, err := client2.Connect(5 * time.Second)
 	assert.Nil(t, err)
-	logging.Log.Debug().Msg(result.String())
+	logging.Log.Debug().Msg(result2.String())
 
 	value, err := client2.IsConnected()
 	assert.Nil(t, err)
@@ -323,25 +398,28 @@ func TestPull(t *testing.T) {
 	path, err := filepath.Abs("./export")
 	assert.Nil(t, err)
 
-	result, err := client.Pull("/data/data/com.library.sample", path)
-
-	logging.Log.Debug().Msgf("output: %s", result.Output())
-	logging.Log.Debug().Msgf("error: %s", result.Error())
+	result, err := client.Pull("/system/build.prop", path)
+	if err != nil {
+		logging.Log.Debug().Msgf("result: %s", result.Error())
+	}
 
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk(), result.Output())
-	client.UnRoot()
-	client.DisconnectAll()
+
+	err = client.UnRoot()
+	assert.Nil(t, err)
+
+	_, err = client.DisconnectAll()
+	assert.Nil(t, err)
 }
 
 func TestPush(t *testing.T) {
 	var client = NewClient()
 	AssertClientConnected(t, client)
 
-	result, err := client.Push("../README.md", "/sdcard/Download")
+	result, err := client.Push("./README.md", "/sdcard/Download")
 	assert.Nil(t, err)
-	assert.Truef(t, result.IsOk(), "result: %s", result.Repr())
-
+	assert.Truef(t, result.IsOk(), "result: %s", result.String())
 	client.Disconnect()
 }
 
@@ -351,8 +429,24 @@ func TestWhich(t *testing.T) {
 
 	result, err := client.Shell.Which("which")
 	assert.Nil(t, err)
+	assert.True(t, len(result) > 0)
 
-	println(result.Repr())
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	fmt.Println(result)
+
+	result2, err := client.Shell.Conn.Which(client.Address.GetSerialAddress(), "which")
+	assert.Nil(t, err)
+	assert.True(t, result2 == result)
+
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	fmt.Println(result2)
+
 }
 
 func TestRx(t *testing.T) {
@@ -375,15 +469,13 @@ func TestRx(t *testing.T) {
 	client.Disconnect()
 	client.Connect(5 * time.Second)
 	client.IsConnected()
-	// client.Disconnect()
 
 	client = nil
 	runtime.GC()
-
-	time.Sleep(time.Duration(2) * time.Second)
+	time.Sleep(2 * time.Second)
 }
 
-func TestActivityManager(t *testing.T) {
+func TestSendBroadcast(t *testing.T) {
 	var client = NewClient()
 	AssertClientConnected(t, client)
 
@@ -391,11 +483,16 @@ func TestActivityManager(t *testing.T) {
 
 	var intent = types.NewIntent()
 	intent.Action = "android.action.View"
+	intent.Wait = true
 	intent.Extra.Es["key1"] = "string1"
 	intent.Extra.Es["key2"] = "string2"
 	intent.Extra.Eia["key_eia1"] = []int{1, 2, 3}
 
-	device.ActivityManager().Broadcast(intent)
+	result, err := device.ActivityManager().Broadcast(intent)
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk(), result.String())
+
+	println(result.String())
 }
 
 func TestShellCat(t *testing.T) {
@@ -407,12 +504,13 @@ func TestShellCat(t *testing.T) {
 	result, err := client.Shell.Whoami()
 	assert.Nil(t, err)
 	assert.Equal(t, "root", result.Output())
+	println(result.String())
 
 	result, err = client.Shell.Cat("/system/build.prop")
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
-	props, err := properties.Load(result.Stdout, properties.UTF8)
+	props, err := properties.Load(result.StdOut.Bytes(), properties.UTF8)
 	assert.Nil(t, err)
 
 	for _, k := range props.Keys() {
@@ -438,10 +536,28 @@ func TestShellGetProp(t *testing.T) {
 	assert.NotNil(t, prop)
 	assert.True(t, len(*prop) > 0)
 
+	prop2, err := shell.GetPropValue("ro.build.product")
+	assert.Nil(t, err)
+	assert.True(t, prop2 != "")
+	assert.True(t, prop2 == *prop)
+
 	logging.Log.Debug().Msgf("ro.build.product -> %s\n", *prop)
 
 	prop = shell.GetProp("invalid.key.string")
 	assert.Nil(t, prop)
+}
+
+func TestListDumpSys(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	result, err := client.Shell.ListDumpSys()
+	assert.Nil(t, err)
+	assert.True(t, len(result) > 0)
+
+	for _, line := range result {
+		fmt.Printf("line -> %s\n", line)
+	}
 }
 
 func TestShellGetProps(t *testing.T) {
@@ -562,6 +678,18 @@ func TestWriteScreenCap(t *testing.T) {
 	os.RemoveAll(target_dir)
 }
 
+func TestFileExists(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	if err := client.Root(); err != nil {
+		assert.Fail(t, "failed to root")
+	}
+
+	exists := client.Shell.Exists("/system/build.prop")
+	assert.True(t, exists)
+}
+
 func TestSaveScreenCap(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
@@ -649,16 +777,11 @@ func TestIsSystem(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	//defer client.Disconnect()
-
 	device := adbclient.NewDevice(client)
 	pm := device.PackageManager()
 
-	is_system, _ := pm.IsSystem("com.google.youtube")
+	is_system, _ := pm.IsSystem("com.android.tv.settings")
 	assert.True(t, is_system)
-
-	is_system, _ = pm.IsSystem("com.google.youtube")
-	assert.False(t, is_system)
 }
 
 func TestSendKey(t *testing.T) {
@@ -667,22 +790,24 @@ func TestSendKey(t *testing.T) {
 	result, err := client.Shell.SendKeyEvent(input.KEYCODE_DPAD_DOWN)
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
+
+	fmt.Println(result.String())
 }
 
 func TestSendText(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	// defer client.Disconnect()
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
-		client.Shell.SendString("Alessandro")
+		result, err := client.Shell.SendString("Alessandro")
+		assert.Nil(t, err)
+		assert.True(t, result.IsOk())
+		fmt.Println(result.String())
 		wg.Done()
 	}()
-
 	wg.Wait()
 }
 
@@ -690,13 +815,15 @@ func TestSendKeys(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	// defer client.Disconnect()
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
-		client.Shell.SendKeyEvents(input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL)
+		result, err := client.Shell.SendKeyEvents(input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL)
+		assert.Nil(t, err)
+		assert.True(t, result.IsOk())
+		fmt.Println(result.String())
+
 		wg.Done()
 	}()
 
@@ -706,26 +833,33 @@ func TestSendKeys(t *testing.T) {
 func TestGetEvents(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
-
-	// defer client.Disconnect()
-
 	result, err := client.Shell.GetEvents()
 	assert.Nil(t, err)
-
+	assert.True(t, len(result) > 0)
 	repr.Println(result)
 }
 
 func TestIsScreenOn(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
+	device := adbclient.NewDevice(client)
+	result, err := device.IsScreenOn()
+	assert.Nil(t, err)
+	assert.True(t, result)
 
-	// defer client.Disconnect()
+	fmt.Printf("screen is on = %t\n", result)
+}
 
+func TestPowerOffOn(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
 	device := adbclient.NewDevice(client)
 
 	result, err := device.IsScreenOn()
 	assert.Nil(t, err)
 	assert.True(t, result)
+
+	fmt.Printf("screen is on = %t\n", result)
 
 	if result {
 		result, err = device.PowerOff()
@@ -733,6 +867,7 @@ func TestIsScreenOn(t *testing.T) {
 		result, err = device.PowerOn()
 	}
 	assert.Nil(t, err)
+	assert.True(t, result)
 }
 
 func TestInstall(t *testing.T) {
@@ -746,10 +881,90 @@ func TestInstall(t *testing.T) {
 		KeepData:          true,
 	}
 
-	result, err := client.Install(local_apk, &options)
+	result, err := client.Install("/Users/alessandro/Downloads/AndroidTV/Swisscom_2022-11-09/ArcCustomizeSettings.apk", &options)
 
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
+	fmt.Println(result.String())
+}
+
+func TestIsInstalled(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	device := adbclient.NewDevice(client)
+	result, err := device.PackageManager().IsInstalled("com.swisscom.aot.library.sample", "")
+	assert.Nil(t, err)
+	assert.True(t, result)
+}
+
+func TestUninstall(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	device := adbclient.NewDevice(client)
+	isInstalled, err := device.PackageManager().IsInstalled("com.swisscom.aot.library.sample", "")
+	assert.Nil(t, err)
+	assert.True(t, isInstalled)
+
+	result, err := client.Uninstall("com.swisscom.aot.library.sample")
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+
+	fmt.Println(result.String())
+}
+
+func TestGrantPermissions(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	device := adbclient.NewDevice(client)
+
+	result, err := device.PackageManager().GrantPermission("com.swisscom.aot.library.sample", "android.permission.ACCESS_NETWORK_STATE")
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+}
+
+func TestRevokePermissions(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	device := adbclient.NewDevice(client)
+
+	result, err := device.PackageManager().RevokePermission("com.swisscom.aot.library.sample", "android.permission.ACCESS_NETWORK_STATE")
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+}
+
+func TestEnablePackage(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	client.Root()
+	device := adbclient.NewDevice(client)
+	result, err := device.PackageManager().Enable("com.google.android.tvlauncher")
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+}
+
+func TestDisablePackage(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	client.Root()
+	device := adbclient.NewDevice(client)
+	result, err := device.PackageManager().Disable("com.google.android.tvlauncher")
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+
+	fmt.Println(result.String())
+}
+
+func TestPackageManagerGetPath(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	device := adbclient.NewDevice(client)
+
+	result, err := device.PackageManager().Path("com.android.systemui", "")
+	assert.Nil(t, err)
+	assert.Equal(t, "/system_ext/priv-app/SystemUI/SystemUI.apk", result)
 }
 
 func TestPmUninstall(t *testing.T) {
@@ -780,6 +995,7 @@ func TestPmUninstall(t *testing.T) {
 	result, err := device.PackageManager().Uninstall(packageName, &options)
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
+	fmt.Println(result.String())
 }
 
 func TestPmInstall(t *testing.T) {
@@ -793,6 +1009,8 @@ func TestPmInstall(t *testing.T) {
 	assert.True(t, result.IsOk())
 
 	remote_apk := fmt.Sprintf("/data/local/tmp/%s", path.Base(local_apk))
+	fmt.Printf("remote apk name: %s\n", remote_apk)
+
 	result, err = device.PackageManager().Install(remote_apk, &packagemanager.InstallOptions{
 		User:                "0",
 		RestrictPermissions: false,
@@ -803,6 +1021,7 @@ func TestPmInstall(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
+	fmt.Println(result.String())
 
 }
 
@@ -810,7 +1029,7 @@ func TestDump(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	pkg := "com.netflix.ninja"
+	pkg := "com.android.tv.settings"
 
 	device := adbclient.NewDevice(client)
 	result, err := device.PackageManager().Dump(pkg)
@@ -819,9 +1038,15 @@ func TestDump(t *testing.T) {
 
 	parser := packagemanager.NewPackageReader(result.Output())
 	assert.NotNil(t, parser)
+
+	if parser == nil {
+		fmt.Printf("%s\n", result.String())
+		return
+	}
+
 	assert.Equal(t, pkg, parser.PackageName())
 	assert.Equal(t, "1000", parser.UserID())
-	assert.Equal(t, "1.0.41", parser.VersionName())
+	assert.Equal(t, "1.0", parser.VersionName())
 	assert.True(t, len(parser.CodePath()) > 1)
 	assert.True(t, len(parser.TimeStamp()) > 1)
 	assert.True(t, len(parser.LastUpdateTime()) > 1)
@@ -890,7 +1115,7 @@ func TestClearPackage(t *testing.T) {
 func TestListSettings(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
-	_, err := client.Root()
+	err := client.Root()
 	assert.Nil(t, err)
 
 	settings, err := client.Shell.ListSettings(types.SettingsGlobal)
@@ -912,14 +1137,14 @@ func TestListSettings(t *testing.T) {
 func TestGetSettings(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
-	_, err := client.Root()
+	err := client.Root()
 	assert.Nil(t, err)
 
-	settings, err := client.Shell.GetSetting("system_locales", types.SettingsSystem)
+	settings, err := client.Shell.GetSetting("user_rotation", types.SettingsSystem)
 	assert.Nil(t, err)
 	assert.NotNil(t, settings)
-	assert.True(t, len(*settings) > 0)
-	logging.Log.Debug().Msgf("system_locales = %s", *settings)
+	assert.Equal(t, "0", *settings)
+	logging.Log.Debug().Msgf("user_rotation = %s", *settings)
 
 	settings, err = client.Shell.GetSetting("transition_animation_scale", types.SettingsGlobal)
 	assert.Nil(t, err)
@@ -931,7 +1156,7 @@ func TestGetSettings(t *testing.T) {
 func TestPutSettings(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
-	_, err := client.Root()
+	err := client.Root()
 	assert.Nil(t, err)
 
 	err = client.Shell.PutSetting("transition_animation_scale", "1.1", types.SettingsGlobal)
@@ -954,7 +1179,7 @@ func TestPutSettings(t *testing.T) {
 func TestDeleteSettings(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
-	_, err := client.Root()
+	err := client.Root()
 	assert.Nil(t, err)
 
 	err = client.Shell.PutSetting("a_custom_setting", "1", types.SettingsGlobal)
@@ -1004,13 +1229,13 @@ func TestScan(t *testing.T) {
 	logging.Log.Info().Msgf("Done")
 }
 
-func TestLogcat(t *testing.T) {
+func TestLogcatSimple(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 	since := time.Now().Add(-3 * time.Hour)
 
 	result, err := client.Logcat(types.LogcatOptions{
-		Expr:     "Authorization: Bearer ([0-9a-zA-Z-]+)",
+		Expr:     "swisscom",
 		Dump:     true,
 		Filename: "",
 		Tags:     nil,
@@ -1023,60 +1248,115 @@ func TestLogcat(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
-	for _, line := range result.OutputLines() {
+	for _, line := range result.OutputLines(true) {
 		logging.Log.Debug().Msgf(line)
 	}
 }
 
-func TestLogcatPipe(t *testing.T) {
+func TestLogcatToDeviceFile(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	since := time.Now().Add(-3 * time.Hour)
+
+	result, err := client.Logcat(types.LogcatOptions{
+		Expr:     "swisscom",
+		Dump:     true,
+		Filename: "/sdcard/Download/logcat.txt",
+		Tags:     nil,
+		Format:   "",
+		Since:    &since,
+		Pids:     nil,
+		Timeout:  10 * time.Second,
+	})
+
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+	fmt.Println(result.String())
+}
+
+func TestLogcatToLocalFile(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+	since := time.Now().Add(-3 * time.Hour)
+
+	localFile, _ := os.Create("logcat.txt")
+
+	result, err := client.Logcat(types.LogcatOptions{
+		Expr:    "swisscom",
+		Dump:    true,
+		File:    localFile,
+		Tags:    nil,
+		Format:  "",
+		Since:   &since,
+		Pids:    nil,
+		Timeout: 10 * time.Second,
+	})
+
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+	fmt.Println(result.String())
+}
+
+func TestLogcatProcessPipe(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
 
-	cmd, cancel, err := client.LogcatCommand(types.LogcatOptions{
-		Tags:    nil,
-		Timeout: 10 * time.Second,
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	defer close(c)
+
+	since := time.Now().Add(-2 * time.Hour)
+
+	pb, err := client.LogcatPipe(types.LogcatOptions{
+		Format: "pid",
+		Since:  &since,
+		Tags: []types.LogcatTag{
+			{
+				Name:  "tvlib.RestClient",
+				Level: types.LogcatVerbose,
+			},
+		},
+		Timeout: 20 * time.Second,
 	})
 
 	if err != nil {
 		panic(err)
 	}
 
-	defer cancel()
+	pipeOutput := pb.StdoutPipe
+	fmt.Printf("pipeOutput: %s\n", pipeOutput)
 
-	pipe, err := cmd.StdoutPipe()
-	if err != nil {
-		panic(err)
-	}
+	err = processbuilder.Start(pb)
+	assert.Nil(t, err)
 
-	if err := cmd.Start(); err != nil {
-		panic(err)
-	}
+	fmt.Println("Now starting the scanner...")
 
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		<-c
-		logging.Log.Warn().Msg("Kill Process!")
-		cmd.Process.Kill()
-	}()
-
-	scanner := bufio.NewScanner(pipe)
+	scanner := bufio.NewScanner(pipeOutput)
+	scanned := 0
 	for scanner.Scan() {
 		text := scanner.Text()
-		if strings.HasSuffix(text, "clear package: error") {
-			fmt.Println("******** OK DONE!!!! **************")
-			// cancel()
+		fmt.Println(text)
+
+		scanned += 1
+		if scanned > 5 {
+			// c <- os.Interrupt
 			break
 		}
-		fmt.Println(text)
 	}
 
-	if err := cmd.Wait(); err != nil {
-		fmt.Println(err)
-	}
+	exit, _, err := processbuilder.Wait(pb)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, exit)
 
 	fmt.Println("ok done")
+}
+
+func TestClearLogcat(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	err := client.ClearLogcat()
+	assert.Nil(t, err)
 }
 
 func TestListDumpsys(t *testing.T) {
@@ -1099,11 +1379,9 @@ func TestDumpsys(t *testing.T) {
 	result, err := client.Shell.DumpSys("bluetooth_manager")
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
-	assert.True(t, len(result.OutputLines()) > 0)
+	assert.True(t, len(result.OutputLines(true)) > 0)
 
-	//logging.Log.Warn().Msg(result.Output())
-
-	parser := types.DumpsysParser{Lines: result.OutputLines()}
+	parser := types.DumpsysParser{Lines: result.OutputLines(true)}
 	sections := parser.FindSections()
 
 	for _, line := range sections {
@@ -1150,7 +1428,7 @@ func TestFactoryReset(t *testing.T) {
 	assert.True(t, result.IsOk())
 }
 
-func TestPipe(t *testing.T) {
+func TestScreenMirror(t *testing.T) {
 	var client = NewClient()
 	AssertClientConnected(t, client)
 	assert.True(t, client.MustRoot())
@@ -1158,29 +1436,95 @@ func TestPipe(t *testing.T) {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
-	result, err := client.Shell.NewProcess().
-		WithArgs("while true; do screenrecord --output-format=h264 -; done").
-		WithPipe("ffplay", "-framerate", "60", "-probesize", "32", "-sync", "video", "-").
-		WithCancel(c).
-		Invoke()
+	cmd1 := client.Shell.NewCommand().WithArgs("while true; do screenrecord --output-format=h264 -; done").ToCommand()
+	cmd2 := processbuilder.NewCommand("ffplay", "-framerate", "60", "-probesize", "32", "-sync", "video", "-")
+
+	o, e, code, _, err := processbuilder.Output(processbuilder.Option{Timeout: 10 * time.Second}, cmd1, cmd2)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, code)
+
+	fmt.Printf("output %s\n", o.String())
+	fmt.Printf("err %s\n", e.String())
 
 	if err != nil {
-		println("error: ")
 		println(err.Error())
-		println(result.ExitStatus.Stopped())
-		println(result.ExitStatus.Exited())
-		println(result.ExitStatus.Signaled())
 	}
+}
 
-	println(result.String())
+func TestDebugWorkManager(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
 
-	if !result.IsOk() && !result.IsInterrupted() {
-		println("result error:")
-		println(result.NewError().Error())
-		return
-	}
+	var device = adbclient.NewDevice(client)
 
+	// clear logcat
+	err := client.ClearLogcat()
 	assert.Nil(t, err)
-	assert.True(t, result.IsOk())
-	println(result.Output())
+
+	var intent = types.NewIntent()
+	intent.Action = "androidx.work.diagnostics.REQUEST_DIAGNOSTICS"
+	intent.Package = "com.swisscom.aot.library.standalone"
+	intent.Wait = true
+
+	_, err = device.ActivityManager().Broadcast(intent)
+	assert.Nil(t, err)
+
+	since := time.Now().Add(-10 * time.Second)
+
+	result, err := client.Logcat(types.LogcatOptions{
+		Format:  "brief",
+		Since:   &since,
+		Dump:    false,
+		Timeout: 2 * time.Second,
+		Tags: []types.LogcatTag{
+			{
+				Name:  "WM-DiagnosticsWrkr",
+				Level: types.LogcatVerbose,
+			},
+		},
+	})
+
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	fmt.Printf("exitCode: %d\n", result.ExitCode)
+
+	f := regexp.MustCompile(`[\w]{8}-[\w]{4}-[\w]{4}-[\w]{4}-[\w]{12}\s+(?P<classname>[\w\.]+)\s+(?P<jobid>[\w]+)\s+(?P<status>[\w]+)\s+(?P<name>[\w\.]+)\s+(?P<tags>[\w\.,]+)`)
+
+	for _, line := range result.OutputLines(true) {
+		match := f.FindStringSubmatch(line)
+		if len(match) > 0 {
+			groups := make(map[string]string)
+			for i, name := range f.SubexpNames() {
+				if i != 0 && name != "" {
+					groups[name] = match[i]
+				}
+			}
+			fmt.Printf("[%s] %s => %s\n", groups["jobid"], groups["classname"], groups["status"])
+		}
+	}
+}
+
+func TestMotionEvents(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	client.Shell.MotionEvent(input.MOUSE, input.DOWN, types.Pair[int, int]{First: 500, Second: 500})
+	client.Shell.MotionEvent(input.MOUSE, input.MOVE, types.Pair[int, int]{First: 500, Second: 500})
+	client.Shell.MotionEvent(input.MOUSE, input.UP, types.Pair[int, int]{First: 300, Second: 700})
+
+	client.Shell.Swipe(input.TOUCHSCREEEN, 2000, types.Pair[int, int]{First: 100, Second: 100}, types.Pair[int, int]{First: 600, Second: 600})
+
+	client.Shell.Tap(input.TOUCHSCREEEN, types.Pair[int, int]{First: 100, Second: 100})
+	client.Shell.Tap(input.TOUCHSCREEEN, types.Pair[int, int]{First: 200, Second: 200})
+}
+
+func TestInputPress(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	client.Shell.Press(input.TRACKBALL)
+	client.Shell.Roll(input.TRACKBALL, types.Pair[int, int]{First: 200, Second: 200})
+	client.Shell.Press(input.TRACKBALL)
 }

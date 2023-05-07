@@ -2,9 +2,6 @@ package shell
 
 import (
 	"fmt"
-	"github.com/magiconair/properties"
-	"github.com/sephiroth74/go_adb_client/connection"
-	streams "github.com/sephiroth74/go_streams"
 	"io/fs"
 	"os"
 	"regexp"
@@ -12,8 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/magiconair/properties"
+	"github.com/sephiroth74/go-processbuilder"
+	"github.com/sephiroth74/go_adb_client/connection"
+	"github.com/sephiroth74/go_adb_client/process"
+	streams "github.com/sephiroth74/go_streams"
+
 	"github.com/sephiroth74/go_adb_client/input"
-	"github.com/sephiroth74/go_adb_client/transport"
 	"github.com/sephiroth74/go_adb_client/types"
 	"github.com/sephiroth74/go_adb_client/util/constants"
 )
@@ -31,48 +33,46 @@ func NewShell(conn *connection.Connection, serial types.Serial) *Shell {
 	return &s
 }
 
-func (s Shell) NewProcess() *transport.ProcessBuilder {
-	return s.newProcess()
+func (s Shell) NewCommand() *process.ADBCommand {
+	return s.Conn.NewAdbCommand().WithSerialAddr(&s.Address).WithCommand("shell")
 }
 
-func (s Shell) Execute(command string, args ...string) (transport.Result, error) {
-	return s.ExecuteWithTimeout(command, 0, args...)
+func (s Shell) Execute(command string, args ...string) (process.OutputResult, error) {
+	return process.SimpleOutput(s.NewCommand().WithArgs(command).AddArgs(args...), s.Conn.Verbose)
 }
 
-func (s Shell) ExecuteWithTimeout(command string, timeout time.Duration, args ...string) (transport.Result, error) {
-	return s.newProcess().WithTimeout(timeout).WithArgs(command).WithArgs(args...).Invoke()
+func (s Shell) Cat(filename string) (process.OutputResult, error) {
+	return process.SimpleOutput(s.NewCommand().WithArgs("cat", filename), s.Conn.Verbose)
 }
 
-func (s Shell) Executef(format string, v ...any) (transport.Result, error) {
-	return s.newProcess().WithArgs(fmt.Sprintf(format, v...)).Invoke()
+func (s Shell) Whoami() (process.OutputResult, error) {
+	return process.SimpleOutput(s.NewCommand().WithArgs("whoami"), s.Conn.Verbose)
 }
 
-func (s Shell) newProcess() *transport.ProcessBuilder {
-	return s.Conn.NewProcessBuilder().WithSerial(&s.Address).WithCommand("shell")
-}
+func (s Shell) Which(command string) (string, error) {
+	cmd := s.NewCommand().WithArgs("which", command)
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
+	if err != nil {
+		return "", err
+	}
 
-func (s Shell) Cat(filename string) (transport.Result, error) {
-	return s.ExecuteWithTimeout("cat", 0, filename)
-}
+	if !result.IsOk() {
+		return "", result.NewError()
+	}
 
-func (s Shell) Whoami() (transport.Result, error) {
-	return s.ExecuteWithTimeout("whoami", 0)
-}
-
-func (s Shell) Which(command string) (transport.Result, error) {
-	return s.ExecuteWithTimeout("which", 0, command)
+	return result.Output(), nil
 }
 
 // GetProp ExecuteWithTimeout the command "adb shell getprop key" and returns its value if found, nil otherwise
 // Deprecated use GetPropValue instead
 func (s Shell) GetProp(key string) *string {
-	result, err := s.ExecuteWithTimeout("getprop", 0, key)
+	result, err := process.SimpleOutput(s.NewCommand().WithArgs("getprop", key), s.Conn.Verbose)
 	if err != nil {
 		return nil
 	}
 
 	if result.IsOk() {
-		trim := strings.TrimSpace(result.Output())
+		trim := result.Output()
 		return &trim
 	} else {
 		return nil
@@ -81,7 +81,7 @@ func (s Shell) GetProp(key string) *string {
 
 // GetPropValue return the value of the given property key
 func (s Shell) GetPropValue(key string) (string, error) {
-	result, err := s.ExecuteWithTimeout("getprop", 0, key)
+	result, err := s.Execute("getprop", key)
 	if err != nil {
 		return "", err
 	}
@@ -97,13 +97,13 @@ func (s Shell) GetPropValue(key string) (string, error) {
 // GetPropType Returns the property type.
 // Can be string, int, bool, enum [list string]
 func (s Shell) GetPropType(key string) (*string, bool) {
-	result, err := s.ExecuteWithTimeout("getprop", 0, "-T", key)
+	result, err := process.SimpleOutput(s.NewCommand().WithArgs("getprop", "-T", key), s.Conn.Verbose)
 	if err != nil {
 		return nil, false
 	}
 
 	if result.IsOk() {
-		trim := strings.TrimSpace(result.Output())
+		trim := result.Output()
 		return &trim, true
 	} else {
 		return nil, false
@@ -111,7 +111,7 @@ func (s Shell) GetPropType(key string) (*string, bool) {
 }
 
 func (s Shell) GetProps() (*properties.Properties, error) {
-	result, err := s.ExecuteWithTimeout("getprop", 0)
+	result, err := process.SimpleOutput(s.NewCommand().WithArgs("getprop"), s.Conn.Verbose)
 	if err != nil {
 		return nil, err
 	}
@@ -121,12 +121,10 @@ func (s Shell) GetProps() (*properties.Properties, error) {
 		pairs, err := parsePropLines(result.Output())
 		for _, t := range pairs {
 			if err != nil {
-				println("err is not null", err.Error())
 				return nil, err
 			}
 
 			if _, _, err := props.Set(t.First, t.Second); err != nil {
-				println("failed to set property")
 				return nil, err
 			}
 		}
@@ -142,7 +140,7 @@ func (s Shell) SetProp(key string, value string) bool {
 		newvalue = "\"\""
 	}
 
-	result, err := s.ExecuteWithTimeout("setprop", constants.DEFAULT_TIMEOUT, key, newvalue)
+	result, err := process.SimpleOutput(s.NewCommand().WithArgs("setprop", key, newvalue).WithTimeout(constants.DEFAULT_TIMEOUT), s.Conn.Verbose)
 	if err != nil {
 		return false
 	}
@@ -177,7 +175,9 @@ func (s Shell) Remove(filename string, force bool) (bool, error) {
 	} else {
 		command = fmt.Sprintf("rm %s", filename)
 	}
-	result, err := s.ExecuteWithTimeout(command, 0)
+
+	cmd := s.NewCommand().WithArgs(command)
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
 	if err != nil {
 		return false, nil
 	}
@@ -248,29 +248,71 @@ func (s Shell) Statf(format string, filename string) (string, error) {
 	return res.Output(), nil
 }
 
-func (s Shell) SendKeyEvent(event input.KeyCode) (transport.Result, error) {
+func (s Shell) SendKeyEvent(event input.KeyCode) (process.OutputResult, error) {
 	return s.SendKeyEvents(event)
 }
 
-func (s Shell) SendKeyEvents(events ...input.KeyCode) (transport.Result, error) {
+func (s Shell) Tap(source input.InputSource, pos types.Pair[int, int]) (process.OutputResult, error) {
+	cmd := s.NewCommand().WithArgs("input", source.String(), "tap")
+	cmd.AddArgs(fmt.Sprintf("%v", pos.First))
+	cmd.AddArgs(fmt.Sprintf("%v", pos.Second))
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+}
+
+func (s Shell) Roll(source input.InputSource, pos types.Pair[int, int]) (process.OutputResult, error) {
+	cmd := s.NewCommand().WithArgs("input", source.String(), "roll")
+	cmd.AddArgs(fmt.Sprintf("%v", pos.First))
+	cmd.AddArgs(fmt.Sprintf("%v", pos.Second))
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+}
+
+func (s Shell) Press(source input.InputSource) (process.OutputResult, error) {
+	cmd := s.NewCommand().WithArgs("input", source.String(), "press")
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+}
+
+func (s Shell) Swipe(source input.InputSource, duration int32, pos1 types.Pair[int, int], pos2 types.Pair[int, int]) (process.OutputResult, error) {
+	cmd := s.NewCommand().WithArgs("input", source.String(), "swipe")
+	cmd.AddArgs(fmt.Sprintf("%v", pos1.First))
+	cmd.AddArgs(fmt.Sprintf("%v", pos1.Second))
+	cmd.AddArgs(fmt.Sprintf("%v", pos2.First))
+	cmd.AddArgs(fmt.Sprintf("%v", pos2.Second))
+	if duration > 0 {
+		cmd.AddArgs(fmt.Sprintf("%v", duration))
+	}
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+}
+
+func (s Shell) MotionEvent(source input.InputSource, event_type input.MotionEvent, pos types.Pair[int, int]) (process.OutputResult, error) {
+	cmd := s.NewCommand().WithArgs("input", source.String(), "motionevent", event_type.String())
+	cmd.AddArgs(fmt.Sprintf("%v", pos.First))
+	cmd.AddArgs(fmt.Sprintf("%v", pos.Second))
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+}
+
+func (s Shell) SendKeyEvents(events ...input.KeyCode) (process.OutputResult, error) {
 	var format = make([]string, len(events))
 	for i, v := range events {
-		format[i] = fmt.Sprintf("%s", v.String())
+		format[i] = v.String()
 	}
-	return s.Executef("input keyevent %s", strings.Join(format, " "))
+
+	cmd := s.NewCommand().WithArgs(fmt.Sprintf("input keyevent %s", strings.Join(format, " ")))
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
 }
 
-func (s Shell) SendChar(code rune) (transport.Result, error) {
-	return s.Executef("input text %c", code)
+func (s Shell) SendChar(code rune) (process.OutputResult, error) {
+	return process.SimpleOutput(s.NewCommand().WithArgs(fmt.Sprintf("input text %c", code)), s.Conn.Verbose)
 }
 
-func (s Shell) SendString(value string) (transport.Result, error) {
-	return s.Executef("input text '%s'", value)
+func (s Shell) SendString(value string) (process.OutputResult, error) {
+	cmd := s.NewCommand().WithArgs(fmt.Sprintf("input text '%s'", value))
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
 }
 
 // GetEvents Returns a slice of Pairs each one containing the event type and the event name
 func (s Shell) GetEvents() ([]types.Pair[string, string], error) {
-	result, err := s.ExecuteWithTimeout("getevent", 0, "-p")
+	cmd := s.NewCommand().WithArgs("getevent", "-p")
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
 	if err != nil {
 		return nil, err
 	}
@@ -279,14 +321,14 @@ func (s Shell) GetEvents() ([]types.Pair[string, string], error) {
 	return arr, nil
 }
 
-func (s Shell) ScreenRecord(options ScreenRecordOptions, c chan os.Signal, filename string) (transport.Result, error) {
-	var pb = s.newProcess()
-
+func (s Shell) ScreenRecord(options ScreenRecordOptions, filename string) (*processbuilder.Processbuilder, error) {
 	args := []string{"screenrecord"}
 	args = append(args, "--bit-rate", fmt.Sprintf("%d", options.Bitrate))
+	poption := processbuilder.Option{}
 
 	if options.Timelimit > 0 {
 		args = append(args, "--time-limit", fmt.Sprintf("%d", options.Timelimit))
+		poption.Timeout = time.Second * time.Duration(options.Timelimit)
 	}
 
 	if options.Rotate {
@@ -307,9 +349,10 @@ func (s Shell) ScreenRecord(options ScreenRecordOptions, c chan os.Signal, filen
 
 	args = append(args, filename)
 
-	pb.WithArgs(args...).WithCancel(c)
-	
-	return pb.Invoke()
+	return processbuilder.Create(
+		poption,
+		s.NewCommand().WithArgs(args...).ToCommand(),
+	)
 }
 
 func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
@@ -319,7 +362,7 @@ func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
 		return emptyList, os.ErrNotExist
 	}
 
-	result, err := s.newProcess().WithArgs("ls -lLHap --color=none", dirname).Invoke()
+	result, err := process.SimpleOutput(s.NewCommand().WithArgs("ls -lLHap --color=none", dirname), s.Conn.Verbose)
 
 	if err != nil {
 		return emptyList, err
@@ -330,7 +373,7 @@ func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
 
 	parser := types.DefaultDeviceFileParser{}
 
-	deviceFiles := streams.MapNotNull(result.OutputLines(), func(line string) (types.DeviceFile, error) {
+	deviceFiles := streams.MapNotNull(result.OutputLines(false), func(line string) (types.DeviceFile, error) {
 		return parser.Parse(dirname, line, "")
 	})
 
@@ -368,7 +411,8 @@ func (s Shell) ListDir(dirname string) ([]types.DeviceFile, error) {
 }
 
 func (s Shell) ListSettings(namespace types.SettingsNamespace) (*properties.Properties, error) {
-	result, err := s.newProcess().WithArgs(fmt.Sprintf("settings list %s", namespace)).Invoke()
+	cmd := s.NewCommand().WithArgs(fmt.Sprintf("settings list %s", namespace))
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +424,8 @@ func (s Shell) ListSettings(namespace types.SettingsNamespace) (*properties.Prop
 }
 
 func (s Shell) GetSetting(key string, namespace types.SettingsNamespace) (*string, error) {
-	result, err := s.newProcess().WithArgs(fmt.Sprintf("settings get %s %s", namespace, key)).Invoke()
+	cmd := s.NewCommand().WithArgs(fmt.Sprintf("settings get %s %s", namespace, key))
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
 
 	if err != nil {
 		return nil, err
@@ -398,7 +443,8 @@ func (s Shell) GetSetting(key string, namespace types.SettingsNamespace) (*strin
 }
 
 func (s Shell) PutSetting(key string, value string, namespace types.SettingsNamespace) error {
-	result, err := s.newProcess().WithArgs(fmt.Sprintf("settings put %s %s %s", namespace, key, value)).Invoke()
+	cmd := s.NewCommand().WithArgs(fmt.Sprintf("settings put %s %s %s", namespace, key, value))
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
 
 	if err != nil {
 		return err
@@ -412,7 +458,8 @@ func (s Shell) PutSetting(key string, value string, namespace types.SettingsName
 }
 
 func (s Shell) DeleteSetting(key string, namespace types.SettingsNamespace) error {
-	result, err := s.newProcess().WithArgs(fmt.Sprintf("settings delete %s %s", namespace, key)).Invoke()
+	cmd := s.NewCommand().WithArgs(fmt.Sprintf("settings delete %s %s", namespace, key))
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
 
 	if err != nil {
 		return err
@@ -427,8 +474,8 @@ func (s Shell) DeleteSetting(key string, namespace types.SettingsNamespace) erro
 
 // DumpSys is a tool that runs on Android devices and provides information about system services.
 // For a complete list of services available use ListDumpSys
-func (s Shell) DumpSys(name string) (transport.Result, error) {
-	return s.Execute("dumpsys", name)
+func (s Shell) DumpSys(name string) (process.OutputResult, error) {
+	return process.SimpleOutput(s.NewCommand().WithArgs("dumpsys", name), s.Conn.Verbose)
 }
 
 // ListDumpSys return the complete list of system services that can be used with dumpsys
@@ -442,7 +489,7 @@ func (s Shell) ListDumpSys() ([]string, error) {
 		return emptylist, result.NewError()
 	}
 
-	return result.OutputLines(), nil
+	return result.OutputLines(false), nil
 }
 
 //
@@ -489,7 +536,9 @@ func parsePropLines(text string) ([]types.Pair[string, string], error) {
 }
 
 func testFile(shell Shell, filename string, mode string) bool {
-	result, err := shell.ExecuteWithTimeout(fmt.Sprintf("test -%s %s && echo 1 || echo 0", mode, filename), 0)
+	cmd := shell.NewCommand().WithArgs(fmt.Sprintf("test -%s %s && echo 1 || echo 0", mode, filename))
+	result, err := process.SimpleOutput(cmd, shell.Conn.Verbose)
+	// result, err := shell.ExecuteWithTimeout(fmt.Sprintf("test -%s %s && echo 1 || echo 0", mode, filename), 0)
 	if err != nil || !result.IsOk() {
 		return false
 	}
