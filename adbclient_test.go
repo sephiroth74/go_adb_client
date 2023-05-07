@@ -41,7 +41,7 @@ import (
 	"gopkg.in/pipe.v2"
 )
 
-var device_ip2 = net.IPv4(192, 168, 1, 117)
+var device_ip2 = net.IPv4(192, 168, 1, 128)
 var device_ip = device_ip2
 
 var local_apk = "~/ArcCustomizeSettings.apk"
@@ -208,7 +208,7 @@ func TestRecordScreen(t *testing.T) {
 		BugReport: false,
 		Size:      &types.Size{Width: 1920, Height: 1080},
 		Verbose:   false,
-	}, c, "/sdcard/Download/screenrecord.mp4")
+	}, "/sdcard/Download/screenrecord.mp4")
 
 	err = processbuilder.Start(pb)
 
@@ -1248,7 +1248,7 @@ func TestLogcatSimple(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
-	for _, line := range result.OutputLines() {
+	for _, line := range result.OutputLines(true) {
 		logging.Log.Debug().Msgf(line)
 	}
 }
@@ -1317,7 +1317,7 @@ func TestLogcatProcessPipe(t *testing.T) {
 			},
 		},
 		Timeout: 20 * time.Second,
-	}, c)
+	})
 
 	if err != nil {
 		panic(err)
@@ -1342,11 +1342,6 @@ func TestLogcatProcessPipe(t *testing.T) {
 			// c <- os.Interrupt
 			break
 		}
-
-		// fmt.Println("******** OK DONE!!!! **************")
-		// processbuilder.Cancel(pb)
-		// break
-		// }
 	}
 
 	exit, _, err := processbuilder.Wait(pb)
@@ -1384,9 +1379,9 @@ func TestDumpsys(t *testing.T) {
 	result, err := client.Shell.DumpSys("bluetooth_manager")
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
-	assert.True(t, len(result.OutputLines()) > 0)
+	assert.True(t, len(result.OutputLines(true)) > 0)
 
-	parser := types.DumpsysParser{Lines: result.OutputLines()}
+	parser := types.DumpsysParser{Lines: result.OutputLines(true)}
 	sections := parser.FindSections()
 
 	for _, line := range sections {
@@ -1444,7 +1439,7 @@ func TestScreenMirror(t *testing.T) {
 	cmd1 := client.Shell.NewCommand().WithArgs("while true; do screenrecord --output-format=h264 -; done").ToCommand()
 	cmd2 := processbuilder.NewCommand("ffplay", "-framerate", "60", "-probesize", "32", "-sync", "video", "-")
 
-	o, e, code, err := processbuilder.Output(processbuilder.Option{Close: &c}, cmd1, cmd2)
+	o, e, code, _, err := processbuilder.Output(processbuilder.Option{Timeout: 10 * time.Second}, cmd1, cmd2)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, code)
 
@@ -1497,7 +1492,7 @@ func TestDebugWorkManager(t *testing.T) {
 
 	f := regexp.MustCompile(`[\w]{8}-[\w]{4}-[\w]{4}-[\w]{4}-[\w]{12}\s+(?P<classname>[\w\.]+)\s+(?P<jobid>[\w]+)\s+(?P<status>[\w]+)\s+(?P<name>[\w\.]+)\s+(?P<tags>[\w\.,]+)`)
 
-	for _, line := range result.OutputLines() {
+	for _, line := range result.OutputLines(true) {
 		match := f.FindStringSubmatch(line)
 		if len(match) > 0 {
 			groups := make(map[string]string)
@@ -1509,4 +1504,27 @@ func TestDebugWorkManager(t *testing.T) {
 			fmt.Printf("[%s] %s => %s\n", groups["jobid"], groups["classname"], groups["status"])
 		}
 	}
+}
+
+func TestMotionEvents(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	client.Shell.MotionEvent(input.MOUSE, input.DOWN, types.Pair[int, int]{First: 500, Second: 500})
+	client.Shell.MotionEvent(input.MOUSE, input.MOVE, types.Pair[int, int]{First: 500, Second: 500})
+	client.Shell.MotionEvent(input.MOUSE, input.UP, types.Pair[int, int]{First: 300, Second: 700})
+
+	client.Shell.Swipe(input.TOUCHSCREEEN, 2000, types.Pair[int, int]{First: 100, Second: 100}, types.Pair[int, int]{First: 600, Second: 600})
+
+	client.Shell.Tap(input.TOUCHSCREEEN, types.Pair[int, int]{First: 100, Second: 100})
+	client.Shell.Tap(input.TOUCHSCREEEN, types.Pair[int, int]{First: 200, Second: 200})
+}
+
+func TestInputPress(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	client.Shell.Press(input.TRACKBALL)
+	client.Shell.Roll(input.TRACKBALL, types.Pair[int, int]{First: 200, Second: 200})
+	client.Shell.Press(input.TRACKBALL)
 }

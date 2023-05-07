@@ -591,3 +591,51 @@ func (d KeyCode) String() string {
 		"KEYCODE_ZOOM_OUT",
 	}[d]
 }
+
+type InputSource int
+
+const (
+	DPAD InputSource = iota
+	KEYBOARD
+	MOUSE
+	TOUCHPAD
+	GAMEPAD
+	TOUCHNAVIGATION
+	JOYSTICK
+	TOUCHSCREEEN
+	STYLUS
+	TRACKBALL
+)
+
+func (d InputSource) String() string {
+	return [...]string{
+		"dpad",
+		"keyboard",
+		"mouse",
+		"touchpad",
+		"gamepad",
+		"touchnavigation",
+		"joystick",
+		"touchscreen",
+		"stylus",
+		"trackball",
+	}[d]
+}
+
+type MotionEvent int
+
+const (
+	DOWN MotionEvent = iota
+	UP
+	MOVE
+	CANCEL
+)
+
+func (d MotionEvent) String() string {
+	return [...]string{
+		"DOWN",
+		"UP",
+		"MOVE",
+		"CANCEL",
+	}[d]
+}

@@ -252,6 +252,44 @@ func (s Shell) SendKeyEvent(event input.KeyCode) (process.OutputResult, error) {
 	return s.SendKeyEvents(event)
 }
 
+func (s Shell) Tap(source input.InputSource, pos types.Pair[int, int]) (process.OutputResult, error) {
+	cmd := s.NewCommand().WithArgs("input", source.String(), "tap")
+	cmd.AddArgs(fmt.Sprintf("%v", pos.First))
+	cmd.AddArgs(fmt.Sprintf("%v", pos.Second))
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+}
+
+func (s Shell) Roll(source input.InputSource, pos types.Pair[int, int]) (process.OutputResult, error) {
+	cmd := s.NewCommand().WithArgs("input", source.String(), "roll")
+	cmd.AddArgs(fmt.Sprintf("%v", pos.First))
+	cmd.AddArgs(fmt.Sprintf("%v", pos.Second))
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+}
+
+func (s Shell) Press(source input.InputSource) (process.OutputResult, error) {
+	cmd := s.NewCommand().WithArgs("input", source.String(), "press")
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+}
+
+func (s Shell) Swipe(source input.InputSource, duration int32, pos1 types.Pair[int, int], pos2 types.Pair[int, int]) (process.OutputResult, error) {
+	cmd := s.NewCommand().WithArgs("input", source.String(), "swipe")
+	cmd.AddArgs(fmt.Sprintf("%v", pos1.First))
+	cmd.AddArgs(fmt.Sprintf("%v", pos1.Second))
+	cmd.AddArgs(fmt.Sprintf("%v", pos2.First))
+	cmd.AddArgs(fmt.Sprintf("%v", pos2.Second))
+	if duration > 0 {
+		cmd.AddArgs(fmt.Sprintf("%v", duration))
+	}
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+}
+
+func (s Shell) MotionEvent(source input.InputSource, event_type input.MotionEvent, pos types.Pair[int, int]) (process.OutputResult, error) {
+	cmd := s.NewCommand().WithArgs("input", source.String(), "motionevent", event_type.String())
+	cmd.AddArgs(fmt.Sprintf("%v", pos.First))
+	cmd.AddArgs(fmt.Sprintf("%v", pos.Second))
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+}
+
 func (s Shell) SendKeyEvents(events ...input.KeyCode) (process.OutputResult, error) {
 	var format = make([]string, len(events))
 	for i, v := range events {
