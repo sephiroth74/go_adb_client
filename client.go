@@ -166,7 +166,7 @@ func (c Client) Remount() (process.OutputResult, error) {
 }
 
 func (c Client) Mount(dir string) (process.OutputResult, error) {
-	result, err := c.Conn.Unmount(c.Address.GetSerialAddress(), dir)
+	result, err := c.Conn.Mount(c.Address.GetSerialAddress(), dir)
 	return WaitAndReturnOutput(&result, err, time.Duration(1)*time.Second)
 }
 

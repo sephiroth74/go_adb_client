@@ -1528,3 +1528,17 @@ func TestInputPress(t *testing.T) {
 	client.Shell.Roll(input.TRACKBALL, types.Pair[int, int]{First: 200, Second: 200})
 	client.Shell.Press(input.TRACKBALL)
 }
+
+func TestStartService(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	intent := types.NewIntent()
+	intent.Action = "swisscom.android.tv.action.FIRMWARE_PASSIVE_CHECK"
+	intent.Component = "com.swisscom.aot.library.standalone/.service.SystemService"
+	intent.Wait = true
+
+	var device = adbclient.NewDevice(client)
+	_, err := device.ActivityManager().StartService(intent)
+	assert.Nil(t, err)
+}

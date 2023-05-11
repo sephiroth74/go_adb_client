@@ -21,6 +21,10 @@ func (a ActivityManager) Start(intent *types.Intent) (process.OutputResult, erro
 	return process.SimpleOutput(a.Shell.NewCommand().WithArgs("am", "start", intent.String()), a.Shell.Conn.Verbose)
 }
 
+func (a ActivityManager) StartService(intent *types.Intent) (process.OutputResult, error) {
+	return process.SimpleOutput(a.Shell.NewCommand().WithArgs("am", "startservice", intent.String()), a.Shell.Conn.Verbose)
+}
+
 func (a ActivityManager) ForceStop(packageName string) error {
 	result, err := process.SimpleOutput(a.Shell.NewCommand().WithArgs(fmt.Sprintf("am force-stop %s", packageName)), a.Shell.Conn.Verbose)
 	if err != nil {
