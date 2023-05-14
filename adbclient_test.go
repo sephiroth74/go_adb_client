@@ -787,7 +787,7 @@ func TestIsSystem(t *testing.T) {
 func TestSendKey(t *testing.T) {
 	client := NewClient()
 	AssertClientConnected(t, client)
-	result, err := client.Shell.SendKeyEvent(input.KEYCODE_DPAD_DOWN)
+	result, err := client.Shell.SendKeyEvent(input.DPAD, nil, input.KEYCODE_DPAD_DOWN)
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 
@@ -819,7 +819,7 @@ func TestSendKeys(t *testing.T) {
 	wg.Add(1)
 
 	go func() {
-		result, err := client.Shell.SendKeyEvents(input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL)
+		result, err := client.Shell.SendKeyEvents(input.DPAD, nil, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL, input.KEYCODE_DEL)
 		assert.Nil(t, err)
 		assert.True(t, result.IsOk())
 		fmt.Println(result.String())

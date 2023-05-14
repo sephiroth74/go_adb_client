@@ -99,7 +99,7 @@ func (d Device) PowerOn() (bool, error) {
 
 // Power Send a KEYCODE_POWER input event to the device
 func (d Device) Power() (bool, error) {
-	result, err := d.Client.Shell.SendKeyEvent(input.KEYCODE_POWER)
+	result, err := d.Client.Shell.SendKeyEvent(input.KEYBOARD, nil, input.KEYCODE_POWER)
 	if err != nil {
 		return false, err
 	}

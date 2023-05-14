@@ -248,10 +248,6 @@ func (s Shell) Statf(format string, filename string) (string, error) {
 	return res.Output(), nil
 }
 
-func (s Shell) SendKeyEvent(event input.KeyCode) (process.OutputResult, error) {
-	return s.SendKeyEvents(event)
-}
-
 func (s Shell) Tap(source input.InputSource, pos types.Pair[int, int]) (process.OutputResult, error) {
 	cmd := s.NewCommand().WithArgs("input", source.String(), "tap")
 	cmd.AddArgs(fmt.Sprintf("%v", pos.First))
@@ -290,13 +286,25 @@ func (s Shell) MotionEvent(source input.InputSource, event_type input.MotionEven
 	return process.SimpleOutput(cmd, s.Conn.Verbose)
 }
 
-func (s Shell) SendKeyEvents(events ...input.KeyCode) (process.OutputResult, error) {
+func (s Shell) SendKeyEvent(source input.InputSource, event_type *input.KeyEventType, event input.KeyCode) (process.OutputResult, error) {
+	return s.SendKeyEvents(source, event_type, event)
+}
+
+func (s Shell) SendKeyEvents(source input.InputSource, event_type *input.KeyEventType, events ...input.KeyCode) (process.OutputResult, error) {
 	var format = make([]string, len(events))
 	for i, v := range events {
 		format[i] = v.String()
 	}
 
-	cmd := s.NewCommand().WithArgs(fmt.Sprintf("input keyevent %s", strings.Join(format, " ")))
+	cmd := s.NewCommand().WithArgs("input")
+	cmd.AddArgs(source.String())
+	cmd.AddArgs("keyevent")
+
+	if event_type != nil {
+		cmd.AddArgs(event_type.String())
+	}
+
+	cmd.AddArgs(fmt.Sprintf("%s", strings.Join(format, " ")))
 	return process.SimpleOutput(cmd, s.Conn.Verbose)
 }
 

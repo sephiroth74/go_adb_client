@@ -639,3 +639,17 @@ func (d MotionEvent) String() string {
 		"CANCEL",
 	}[d]
 }
+
+type KeyEventType int
+
+const (
+	KEY_EVENTTYPE_LONGPRESS KeyEventType = iota
+	KEY_EVENTTYPE_DOUBLETAP
+)
+
+func (d KeyEventType) String() string {
+	return [...]string{
+		"--longpress",
+		"--doubletap",
+	}[d]
+}
