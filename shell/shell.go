@@ -286,6 +286,11 @@ func (s Shell) MotionEvent(source input.InputSource, event_type input.MotionEven
 	return process.SimpleOutput(cmd, s.Conn.Verbose)
 }
 
+func (s Shell) SendEvent(device string, code_type int, code int, value int) (process.OutputResult, error) {
+	cmd := s.NewCommand().WithArgs("sendevent", device, fmt.Sprintf("%d", code_type), fmt.Sprintf("%d", code), fmt.Sprintf("%d", value))
+	return process.SimpleOutput(cmd, s.Conn.Verbose)
+}
+
 func (s Shell) SendKeyEvent(source input.InputSource, event_type *input.KeyEventType, event input.KeyCode) (process.OutputResult, error) {
 	return s.SendKeyEvents(source, event_type, event)
 }
@@ -304,7 +309,7 @@ func (s Shell) SendKeyEvents(source input.InputSource, event_type *input.KeyEven
 		cmd.AddArgs(event_type.String())
 	}
 
-	cmd.AddArgs(fmt.Sprintf("%s", strings.Join(format, " ")))
+	cmd.AddArgs(strings.Join(format, " "))
 	return process.SimpleOutput(cmd, s.Conn.Verbose)
 }
 
