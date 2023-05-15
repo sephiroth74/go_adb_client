@@ -509,7 +509,7 @@ func (s Shell) ListDumpSys() ([]string, error) {
 
 func parseEvents(text string) []types.Pair[string, string] {
 	arr := []types.Pair[string, string]{}
-	f := regexp.MustCompile(`add device [0-9]+:\s(?P<event>[^\n]+)\s*name:\s*"(?P<name>[^"]+)"`)
+	f := regexp.MustCompile(`^add\s+device\s+[0-9]+:\s(?P<event>[^\n]+)\s*name:\s*"(?P<name>[^"]+)"`)
 	for {
 		m := f.FindStringSubmatchIndex(text)
 		if len(m) == 6 {
