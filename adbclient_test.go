@@ -41,7 +41,7 @@ import (
 	"gopkg.in/pipe.v2"
 )
 
-var device_ip2 = net.IPv4(192, 168, 1, 128)
+var device_ip2 = net.IPv4(192, 168, 1, 25)
 var device_ip = device_ip2
 
 var local_apk = "~/ArcCustomizeSettings.apk"

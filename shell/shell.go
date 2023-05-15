@@ -324,7 +324,7 @@ func (s Shell) SendString(value string) (process.OutputResult, error) {
 
 // GetEvents Returns a slice of Pairs each one containing the event type and the event name
 func (s Shell) GetEvents() ([]types.Pair[string, string], error) {
-	cmd := s.NewCommand().WithArgs("getevent", "-p")
+	cmd := s.NewCommand().WithArgs("getevent", "-S")
 	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
 	if err != nil {
 		return nil, err
@@ -509,7 +509,7 @@ func (s Shell) ListDumpSys() ([]string, error) {
 
 func parseEvents(text string) []types.Pair[string, string] {
 	arr := []types.Pair[string, string]{}
-	f := regexp.MustCompile(`^add\s+device\s+[0-9]+:\s(?P<event>[^\n]+)\s*name:\s*"(?P<name>[^"]+)"`)
+	f := regexp.MustCompile(`^add\s+device\s+[0-9]+:\s(?P<event>[^\n]+)\s*name:\s*"(?P<name>[^"]+)"\n?`)
 	for {
 		m := f.FindStringSubmatchIndex(text)
 		if len(m) == 6 {
