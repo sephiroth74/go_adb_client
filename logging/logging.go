@@ -19,25 +19,25 @@ var (
 			if ll, ok := i.(string); ok {
 				switch ll {
 				case zerolog.LevelTraceValue:
-					l = colorize("[TRACE]", 35, false)
+					l = colorize("T", 35, false)
 				case zerolog.LevelDebugValue:
-					l = colorize("[DEBUG]", 34, false)
+					l = colorize("D", 34, false)
 				case zerolog.LevelInfoValue:
-					l = colorize("[INFO] ", 37, false)
+					l = colorize("I", 37, false)
 				case zerolog.LevelWarnValue:
-					l = colorize("[WARN] ", 33, false)
+					l = colorize("W", 33, false)
 				case zerolog.LevelErrorValue:
-					l = colorize(colorize("[ERROR]", 31, false), 1, false)
+					l = colorize(colorize("E", 31, false), 1, false)
 				case zerolog.LevelFatalValue:
-					l = colorize(colorize("[FATAL]", 31, false), 1, false)
+					l = colorize(colorize("F", 31, false), 1, false)
 				case zerolog.LevelPanicValue:
-					l = colorize(colorize("[PANIC]", 31, false), 1, false)
+					l = colorize(colorize("P", 31, false), 1, false)
 				default:
-					l = colorize("[???]", 1, false)
+					l = colorize("?", 1, false)
 				}
 			} else {
 				if i == nil {
-					l = colorize("[???]", 1, false)
+					l = colorize("?", 1, false)
 				} else {
 					l = strings.ToUpper(fmt.Sprintf("%s", i))[0:3]
 				}
