@@ -41,7 +41,7 @@ import (
 	"gopkg.in/pipe.v2"
 )
 
-var device_ip2 = net.IPv4(192, 168, 1, 25)
+var device_ip2 = net.IPv4(192, 168, 1, 128)
 var device_ip = device_ip2
 
 var local_apk = "~/ArcCustomizeSettings.apk"
@@ -67,6 +67,32 @@ func TestReconnect(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
 	fmt.Println(result.String())
+}
+
+func TestDisableVerity(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	err := client.Root()
+	assert.Nil(t, err)
+
+	output, err := client.DisableVerity()
+	assert.Nil(t, err)
+
+	fmt.Println(output)
+}
+
+func TestEnableVerity(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	_, err := client.IsRoot()
+	assert.Nil(t, err)
+
+	output, err := client.EnableVerity()
+	assert.Nil(t, err)
+
+	fmt.Println(output)
 }
 
 func TestIsRoot(t *testing.T) {

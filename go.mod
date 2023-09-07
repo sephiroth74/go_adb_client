@@ -9,7 +9,7 @@ require (
 	github.com/rs/zerolog v1.30.0
 	github.com/sephiroth74/go_streams v1.0.8
 	github.com/stretchr/testify v1.8.4
-	golang.org/x/sys v0.11.0
+	golang.org/x/sys v0.12.0
 	pkg.re/essentialkaos/ek.v12 v12.41.0+incompatible
 )
 

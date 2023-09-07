@@ -369,6 +369,35 @@ func (c Client) MustRoot() bool {
 	return false
 }
 
+func (c Client) DisableVerity() (string, error) {
+	return c.toggleVerity(false)
+}
+
+func (c Client) EnableVerity() (string, error) {
+	return c.toggleVerity(true)
+}
+
+func (c Client) toggleVerity(enabled bool) (string, error) {
+	if !c.GetIsConnected() {
+		return "", errors.New("not connected")
+	}
+
+	if !c.GetIsRoot() {
+		return "", errors.New("must be root")
+	}
+
+	var cmd string
+
+	if enabled {
+		cmd = "enable-verity"
+	} else {
+		cmd = "disable-verity"
+	}
+
+	output, err := process.SimpleOutput(c.NewAdbCommand().WithCommand(cmd), c.Conn.Verbose)
+	return output.Output(), err
+}
+
 type InstallOptions struct {
 	// -r reinstall an existing app, keeping its data
 	KeepData bool
