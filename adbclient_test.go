@@ -3,6 +3,7 @@ package adbclient_test
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -41,7 +42,7 @@ import (
 	"gopkg.in/pipe.v2"
 )
 
-var device_ip2 = net.IPv4(192, 168, 1, 128)
+var device_ip2 = net.IPv4(192, 168, 1, 101)
 var device_ip = device_ip2
 
 var local_apk = "~/ArcCustomizeSettings.apk"
@@ -80,6 +81,19 @@ func TestDisableVerity(t *testing.T) {
 	assert.Nil(t, err)
 
 	fmt.Println(output)
+}
+
+func TestGetMemInfo(t *testing.T) {
+	client := NewClient()
+	AssertClientConnected(t, client)
+
+	result, err := client.GetMemInfo()
+	assert.Nil(t, err)
+	
+	userData, err := json.Marshal(result)	
+	assert.Nil(t, err)
+	
+	println(string(userData))
 }
 
 func TestEnableVerity(t *testing.T) {

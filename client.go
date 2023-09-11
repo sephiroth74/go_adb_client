@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -329,6 +331,30 @@ func (c Client) LogcatPipe(options types.LogcatOptions) (*processbuilder.Process
 	}
 
 	return p, nil
+}
+
+func (c Client) GetMemInfo() (map[string]int, error) {
+	result, err := c.Shell.Cat("/proc/meminfo")
+	if err != nil {
+		return nil, err
+	}
+
+	r := regexp.MustCompile(`^([\w\(\)]+):\s*([\d]+)\s*`)
+	hashmap := make(map[string]int)
+
+	lines := result.OutputLines(true)
+	for _, line := range lines {
+		m := r.FindStringSubmatch(line)
+		if len(m) == 3 {
+			intVar, err := strconv.Atoi(m[2])
+			if err != nil {
+				return nil, err
+			}
+			hashmap[m[1]] = intVar
+		}
+	}
+
+	return hashmap, nil
 }
 
 //
