@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/sephiroth74/go-processbuilder"
 	streams "github.com/sephiroth74/go_streams"
 
@@ -32,7 +33,7 @@ type Client struct {
 	Shell   *shell.Shell
 }
 
-func NewClient(device types.Serial, verbose bool) *Client {
+func NewClient(device types.Serial, logger *log.Logger, verbose bool) *Client {
 	var conn = connection.NewConnection(verbose)
 	client := new(Client)
 	client.Conn = conn
@@ -40,6 +41,11 @@ func NewClient(device types.Serial, verbose bool) *Client {
 	client.Address = device
 	client.Channel = make(chan rxgo.Item)
 	client.Shell = shell.NewShell(client.Conn, device)
+
+	if logger != nil {
+		logging.Log = logger
+	}
+	
 	processbuilder.SetLogger(logging.Log)
 	return client
 }
