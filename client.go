@@ -45,13 +45,13 @@ func NewClient(device types.Serial, logger *log.Logger, verbose bool) *Client {
 	if logger != nil {
 		logging.Log = logger
 	}
-	
+
 	processbuilder.SetLogger(logging.Log)
 	return client
 }
 
 func NullClient(verbose bool) *Client {
-	return NewClient(types.ClientAddr{IP: net.IPv4(127, 0, 0, 1), Port: 5555}, verbose)
+	return NewClient(types.ClientAddr{IP: net.IPv4(127, 0, 0, 1), Port: 5555}, nil, verbose)
 }
 
 func (c Client) NewAdbCommand() *process.ADBCommand {
