@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/sephiroth74/go-processbuilder"
 	"github.com/sephiroth74/go_adb_client/process"
 	"github.com/sephiroth74/go_adb_client/scanner"
@@ -47,6 +48,7 @@ var device_ip = device_ip2
 
 var local_apk = "~/ArcCustomizeSettings.apk"
 
+
 func init() {
 }
 
@@ -55,6 +57,11 @@ func NewClient() *adbclient.Client {
 }
 
 func AssertClientConnected(t *testing.T, client *adbclient.Client) {
+	logger := log.New(os.Stderr)
+	logger.Warn("chewy!", "butter", true)
+
+	logging.Log.Info("Hello World!")
+
 	result, err := client.Connect(5 * time.Second)
 	assert.Nil(t, err, "Error connecting to %s", client.Address.String())
 	assert.True(t, result.IsOk(), "Error: %s", result.Error())
@@ -89,10 +96,10 @@ func TestGetMemInfo(t *testing.T) {
 
 	result, err := client.GetMemInfo()
 	assert.Nil(t, err)
-	
-	userData, err := json.Marshal(result)	
+
+	userData, err := json.Marshal(result)
 	assert.Nil(t, err)
-	
+
 	println(string(userData))
 }
 
@@ -221,9 +228,9 @@ func TestDirWalk(t *testing.T) {
 	result, err := device.Client.Shell.ListDir(dirname)
 	assert.Nil(t, err)
 
-	logging.Log.Info().Msgf("result of listdir: %s", dirname)
+	logging.Log.Infof("result of listdir: %s", dirname)
 	for _, line := range result {
-		logging.Log.Info().Msg(line.String())
+		logging.Log.Info(line.String())
 	}
 
 }
@@ -273,7 +280,7 @@ func TestConnect(t *testing.T) {
 	var client = NewClient()
 
 	result, err := client.Connect(5 * time.Second)
-	logging.Log.Debug().Msgf("result=%s", result.String())
+	logging.Log.Debugf("result=%s", result.String())
 	assert.Nil(t, err)
 	assert.Equal(t, true, result.IsOk())
 
@@ -340,7 +347,7 @@ func TestListDevices(t *testing.T) {
 
 	if err == nil {
 		for x := 0; x < len(list); x++ {
-			logging.Log.Debug().Msgf("Device: %s\n", list[x].String())
+			logging.Log.Debugf("Device: %s\n", list[x].String())
 		}
 	}
 }
@@ -384,15 +391,15 @@ func TestRemount(t *testing.T) {
 	result, err := client.Remount()
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
-	logging.Log.Debug().Msg(result.String())
+	logging.Log.Debug(result.String())
 
 	result, err = client.Unmount("/system")
 	if err != nil {
-		logging.Log.Warn().Msgf("error=%#v\n", err.Error())
+		logging.Log.Warnf("error=%#v\n", err.Error())
 	}
 	assert.Nil(t, err)
 	assert.True(t, result.IsOk())
-	logging.Log.Debug().Msg(result.String())
+	logging.Log.Debug(result.String())
 }
 
 func TestGetVersion(t *testing.T) {
@@ -400,7 +407,7 @@ func TestGetVersion(t *testing.T) {
 	result, err := conn.Version()
 	assert.Nil(t, err)
 	assert.NotEmpty(t, result)
-	logging.Log.Debug().Msgf("adb version=%s", result)
+	logging.Log.Debugf("adb version=%s", result)
 }
 
 func TestMdnsServices(t *testing.T) {
@@ -411,10 +418,10 @@ func TestMdnsServices(t *testing.T) {
 
 	devices, err := mdns.Services()
 	assert.Nil(t, err)
-	logging.Log.Debug().Msgf("Found %d devices", len(devices))
+	logging.Log.Debugf("Found %d devices", len(devices))
 
 	for i := 0; i < len(devices); i++ {
-		logging.Log.Debug().Msgf("device: %#v", devices[i])
+		logging.Log.Debugf("device: %#v", devices[i])
 	}
 
 	assert.True(t, len(devices) > 0)
@@ -422,7 +429,7 @@ func TestMdnsServices(t *testing.T) {
 	client2 := adbclient.NewClient(devices[1], true)
 	result2, err := client2.Connect(5 * time.Second)
 	assert.Nil(t, err)
-	logging.Log.Debug().Msg(result2.String())
+	logging.Log.Debug(result2.String())
 
 	value, err := client2.IsConnected()
 	assert.Nil(t, err)
@@ -440,7 +447,7 @@ func TestPull(t *testing.T) {
 
 	result, err := client.Pull("/system/build.prop", path)
 	if err != nil {
-		logging.Log.Debug().Msgf("result: %s", result.Error())
+		logging.Log.Debugf("result: %s", result.Error())
 	}
 
 	assert.Nil(t, err)
@@ -495,15 +502,15 @@ func TestRx(t *testing.T) {
 	observable := rxgo.FromEventSource(client.Channel)
 
 	observable.DoOnNext(func(i interface{}) {
-		logging.Log.Info().Msgf("onNext: %s", repr.String(i))
+		logging.Log.Infof("onNext: %s", repr.String(i))
 	})
 
 	observable.DoOnCompleted(func() {
-		logging.Log.Info().Msg("onComplete")
+		logging.Log.Info("onComplete")
 	})
 
 	observable.DoOnError(func(err error) {
-		logging.Log.Info().Msgf("onError: %s", err.Error())
+		logging.Log.Infof("onError: %s", err.Error())
 	})
 
 	client.Disconnect()
@@ -557,9 +564,9 @@ func TestShellCat(t *testing.T) {
 		v, ok := props.Get(k)
 
 		if ok {
-			logging.Log.Debug().Msgf("%s = %s", k, v)
+			logging.Log.Debugf("%s = %s", k, v)
 		} else {
-			logging.Log.Warn().Msgf("Error reading key %s", k)
+			logging.Log.Warnf("Error reading key %s", k)
 		}
 	}
 
@@ -581,7 +588,7 @@ func TestShellGetProp(t *testing.T) {
 	assert.True(t, prop2 != "")
 	assert.True(t, prop2 == *prop)
 
-	logging.Log.Debug().Msgf("ro.build.product -> %s\n", *prop)
+	logging.Log.Debugf("ro.build.product -> %s\n", *prop)
 
 	prop = shell.GetProp("invalid.key.string")
 	assert.Nil(t, prop)
@@ -612,7 +619,7 @@ func TestShellGetProps(t *testing.T) {
 
 	for _, v := range props.Keys() {
 		value := props.GetString(v, "")
-		logging.Log.Debug().Msgf("%s=%s", v, value)
+		logging.Log.Debugf("%s=%s", v, value)
 	}
 }
 
@@ -629,7 +636,7 @@ func TestShellGetPropsType(t *testing.T) {
 		pt, ok := shell.GetPropType(v)
 		assert.Truef(t, ok, "Error getting type of key %s", v)
 		if ok {
-			logging.Log.Debug().Msgf("%s=%s", v, *pt)
+			logging.Log.Debugf("%s=%s", v, *pt)
 		}
 	}
 }
@@ -647,9 +654,9 @@ func TestDevice(t *testing.T) {
 	assert.NotNil(t, apiLevel)
 	assert.NotNil(t, version)
 
-	logging.Log.Info().Msgf("device name: %s", *deviceName)
-	logging.Log.Info().Msgf("device api level: %s", *apiLevel)
-	logging.Log.Info().Msgf("device version release: %s", *version)
+	logging.Log.Infof("device name: %s", *deviceName)
+	logging.Log.Infof("device api level: %s", *apiLevel)
+	logging.Log.Infof("device version release: %s", *version)
 }
 
 func TestShellSetProp(t *testing.T) {
@@ -688,8 +695,8 @@ func TestWriteScreenCap(t *testing.T) {
 
 	var target_dir = filepath.Dir(target_file)
 
-	logging.Log.Info().Msgf("target file: %s", target_file)
-	logging.Log.Info().Msgf("target dir: %s", target_dir)
+	logging.Log.Infof("target file: %s", target_file)
+	logging.Log.Infof("target dir: %s", target_dir)
 
 	os.RemoveAll(target_dir)
 	os.MkdirAll(target_dir, 0755)
@@ -706,8 +713,8 @@ func TestWriteScreenCap(t *testing.T) {
 	assert.Nil(t, err)
 
 	if err != nil {
-		logging.Log.Error().Msgf(err.Error())
-		logging.Log.Error().Msgf(result.Error())
+		logging.Log.Error(err.Error())
+		logging.Log.Error(result.Error())
 	}
 
 	assert.True(t, result.IsOk())
@@ -744,8 +751,8 @@ func TestSaveScreenCap(t *testing.T) {
 	assert.True(t, exists)
 
 	if err != nil {
-		logging.Log.Error().Msgf(err.Error())
-		logging.Log.Error().Msgf(result.Error())
+		logging.Log.Error(err.Error())
+		logging.Log.Error(result.Error())
 	}
 
 	value := client.Shell.Exists(target_file)
@@ -782,7 +789,7 @@ func TestListPackages(t *testing.T) {
 	assert.Nil(t, err)
 
 	for _, p := range packages {
-		logging.Log.Debug().Msgf("%s, uid:%s", p.Name, p.UID)
+		logging.Log.Debugf("%s, uid:%s", p.Name, p.UID)
 		assert.True(t, p.Filename != "")
 		assert.True(t, p.Name != "")
 		assert.True(t, p.VersionCode != "")
@@ -809,7 +816,7 @@ func TestFindPackages(t *testing.T) {
 		assert.True(t, p.VersionCode != "")
 		assert.True(t, p.UID != "")
 		assert.True(t, p.MaybeIsSystem())
-		logging.Log.Debug().Msgf("%s, uid:%s", p.Name, p.UID)
+		logging.Log.Debugf("%s, uid:%s", p.Name, p.UID)
 	}
 }
 
@@ -1018,12 +1025,12 @@ func TestPmUninstall(t *testing.T) {
 	assert.Nil(t, err)
 
 	installed := streams.Any(packages, func(p packagemanager.Package) bool {
-		logging.Log.Debug().Msgf("Checking package %s", p.Name)
+		logging.Log.Debugf("Checking package %s", p.Name)
 		return p.Name == packageName
 	})
 
 	if !installed {
-		logging.Log.Warn().Msgf("Not installed. Skipping test")
+		logging.Log.Warn("Not installed. Skipping test")
 		return
 	}
 
@@ -1111,7 +1118,7 @@ func TestRuntimePermissions(t *testing.T) {
 	assert.True(t, len(result) > 0)
 
 	for _, v := range result {
-		logging.Log.Debug().Msg(v.String())
+		logging.Log.Debug(v.String())
 	}
 }
 
@@ -1125,7 +1132,7 @@ func TestInstallPermissions(t *testing.T) {
 	assert.True(t, len(result) > 0)
 
 	for _, v := range result {
-		logging.Log.Debug().Msg(v.String())
+		logging.Log.Debug(v.String())
 	}
 }
 
@@ -1139,7 +1146,7 @@ func TestRequestedPermissions(t *testing.T) {
 	assert.True(t, len(result) > 0)
 
 	for _, v := range result {
-		logging.Log.Debug().Msg(v.String())
+		logging.Log.Debug(v.String())
 	}
 }
 
@@ -1161,17 +1168,17 @@ func TestListSettings(t *testing.T) {
 	settings, err := client.Shell.ListSettings(types.SettingsGlobal)
 	assert.Nil(t, err)
 	assert.True(t, settings.Len() > 0)
-	logging.Log.Debug().Msgf("loaded %d global settings", settings.Len())
+	logging.Log.Debugf("loaded %d global settings", settings.Len())
 
 	settings, err = client.Shell.ListSettings(types.SettingsSystem)
 	assert.Nil(t, err)
 	assert.True(t, settings.Len() > 0)
-	logging.Log.Debug().Msgf("loaded %d system settings", settings.Len())
+	logging.Log.Debugf("loaded %d system settings", settings.Len())
 
 	settings, err = client.Shell.ListSettings(types.SettingsSecure)
 	assert.Nil(t, err)
 	assert.True(t, settings.Len() > 0)
-	logging.Log.Debug().Msgf("loaded %d secure settings", settings.Len())
+	logging.Log.Debugf("loaded %d secure settings", settings.Len())
 }
 
 func TestGetSettings(t *testing.T) {
@@ -1184,13 +1191,13 @@ func TestGetSettings(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, settings)
 	assert.Equal(t, "0", *settings)
-	logging.Log.Debug().Msgf("user_rotation = %s", *settings)
+	logging.Log.Debugf("user_rotation = %s", *settings)
 
 	settings, err = client.Shell.GetSetting("transition_animation_scale", types.SettingsGlobal)
 	assert.Nil(t, err)
 	assert.NotNil(t, settings)
 	assert.True(t, len(*settings) > 0)
-	logging.Log.Debug().Msgf("transition_animation_scale = %s", *settings)
+	logging.Log.Debugf("transition_animation_scale = %s", *settings)
 }
 
 func TestPutSettings(t *testing.T) {
@@ -1241,7 +1248,7 @@ func TestDeleteSettings(t *testing.T) {
 func TestScan(t *testing.T) {
 	sc := scanner.NewScanner()
 
-	logging.Log.Debug().Msgf("Scanning for devices...")
+	logging.Log.Debugf("Scanning for devices...")
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -1250,23 +1257,23 @@ func TestScan(t *testing.T) {
 		defer wg.Done()
 		for remoteAddr := range sc.Results {
 			if remoteAddr != nil {
-				logging.Log.Info().Msgf("Device found: %s", *remoteAddr)
+				logging.Log.Infof("Device found: %s", *remoteAddr)
 			}
 		}
 	}()
 	sc.Scan()
 	wg.Wait()
-	logging.Log.Info().Msgf("Done")
+	logging.Log.Infof("Done")
 
-	logging.Log.Debug().Msgf("Scanning mdns services...")
+	logging.Log.Debugf("Scanning mdns services...")
 
 	client := adbclient.NullClient(true)
 	services, _ := client.Mdns.Services()
 
 	for _, service := range services {
-		logging.Log.Info().Msgf("Mdns found: %s", service.Address.GetSerialAddress())
+		logging.Log.Infof("Mdns found: %s", service.Address.GetSerialAddress())
 	}
-	logging.Log.Info().Msgf("Done")
+	logging.Log.Infof("Done")
 }
 
 func TestLogcatSimple(t *testing.T) {
@@ -1289,7 +1296,7 @@ func TestLogcatSimple(t *testing.T) {
 	assert.True(t, result.IsOk())
 
 	for _, line := range result.OutputLines(true) {
-		logging.Log.Debug().Msgf(line)
+		logging.Log.Debugf(line)
 	}
 }
 
@@ -1408,7 +1415,7 @@ func TestListDumpsys(t *testing.T) {
 	assert.True(t, len(result) > 0)
 
 	for index, line := range result {
-		logging.Log.Debug().Msgf("%d = %s", index, line)
+		logging.Log.Debugf("%d = %s", index, line)
 	}
 }
 

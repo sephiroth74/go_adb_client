@@ -40,7 +40,7 @@ func NewClient(device types.Serial, verbose bool) *Client {
 	client.Address = device
 	client.Channel = make(chan rxgo.Item)
 	client.Shell = shell.NewShell(client.Conn, device)
-	processbuilder.SetLogger(&logging.Log)
+	processbuilder.SetLogger(logging.Log)
 	return client
 }
 

@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rs/zerolog"
+	"github.com/charmbracelet/log"
 	"github.com/sephiroth74/go-processbuilder"
 	"github.com/sephiroth74/go_adb_client/types"
 	streams "github.com/sephiroth74/go_streams"
@@ -158,13 +158,9 @@ func SimpleOutput(command *ADBCommand, verbose bool) (OutputResult, error) {
 	}
 
 	if verbose {
-		if zerolog.GlobalLevel() > zerolog.DebugLevel {
-			option.LogLevel = zerolog.Disabled
-		} else {
-			option.LogLevel = zerolog.DebugLevel
-		}
+		option.LogLevel = log.DebugLevel
 	} else {
-		option.LogLevel = zerolog.Disabled
+		option.LogLevel = log.InfoLevel
 	}
 
 	cmd := processbuilder.NewCommand(command.ADBPath, command.FullArgs()...)
