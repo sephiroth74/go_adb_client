@@ -33,7 +33,7 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/sephiroth74/go-processbuilder v0.0.14
+	github.com/sephiroth74/go-processbuilder v0.0.16
 	github.com/stretchr/objx v0.5.1 // indirect
 	github.com/teivah/onecontext v1.3.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
