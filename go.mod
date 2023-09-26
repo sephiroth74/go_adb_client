@@ -6,7 +6,7 @@ require (
 	github.com/alecthomas/repr v0.2.0
 	github.com/magiconair/properties v1.8.7
 	github.com/reactivex/rxgo/v2 v2.5.0
-	github.com/rs/zerolog v1.30.0
+	github.com/rs/zerolog v1.31.0
 	github.com/sephiroth74/go_streams v1.0.8
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/sys v0.12.0

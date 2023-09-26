@@ -12,8 +12,8 @@ var (
 	Log = zerolog.New(zerolog.ConsoleWriter{
 		Out:           os.Stderr,
 		NoColor:       false,
-		TimeFormat:    "15:04:05.000",
-		FormatMessage: func(i interface{}) string { return fmt.Sprintf("→ %s", i) },
+		TimeFormat:    "15:04:05",
+		FormatMessage: func(i interface{}) string { return fmt.Sprintf("» %s", i) },
 		FormatLevel: func(i interface{}) string {
 			var l string
 			if ll, ok := i.(string); ok {
@@ -27,11 +27,11 @@ var (
 				case zerolog.LevelWarnValue:
 					l = colorize("W", 33, false)
 				case zerolog.LevelErrorValue:
-					l = colorize(colorize("E", 31, false), 1, false)
+					l = colorize("E", 31, false)
 				case zerolog.LevelFatalValue:
-					l = colorize(colorize("F", 31, false), 1, false)
+					l = colorize("F", 31, false)
 				case zerolog.LevelPanicValue:
-					l = colorize(colorize("P", 31, false), 1, false)
+					l = colorize("P", 31, false)
 				default:
 					l = colorize("?", 1, false)
 				}
