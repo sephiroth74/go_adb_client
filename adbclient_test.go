@@ -43,7 +43,7 @@ import (
 	"gopkg.in/pipe.v2"
 )
 
-var device_ip2 = net.IPv4(192, 168, 1, 101)
+var device_ip2 = net.IPv4(192, 168, 1, 128)
 var device_ip = device_ip2
 
 var local_apk = "~/ArcCustomizeSettings.apk"
@@ -53,7 +53,7 @@ func init() {
 }
 
 func NewClient() *adbclient.Client {
-	return adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555}, true)
+	return adbclient.NewClient(types.ClientAddr{IP: device_ip, Port: 5555}, logging.Log, true)
 }
 
 func AssertClientConnected(t *testing.T, client *adbclient.Client) {
@@ -426,7 +426,7 @@ func TestMdnsServices(t *testing.T) {
 
 	assert.True(t, len(devices) > 0)
 
-	client2 := adbclient.NewClient(devices[1], true)
+	client2 := adbclient.NewClient(devices[1], logging.Log, true)
 	result2, err := client2.Connect(5 * time.Second)
 	assert.Nil(t, err)
 	logging.Log.Debug(result2.String())

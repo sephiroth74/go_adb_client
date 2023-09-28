@@ -158,7 +158,7 @@ func SimpleOutput(command *ADBCommand, verbose bool) (OutputResult, error) {
 	}
 
 	if verbose {
-		option.LogLevel = log.DebugLevel
+		option.LogLevel = log.TraceLevel
 	} else {
 		option.LogLevel = log.InfoLevel
 	}

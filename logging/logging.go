@@ -14,6 +14,7 @@ var (
 		TimeFormat:      time.Kitchen,
 		Prefix:          "|",
 		Level:           log.DebugLevel,
+		CallerFormatter: log.FilenameCallerFormatter,
 	})
 )
 
