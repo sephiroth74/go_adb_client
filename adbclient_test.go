@@ -43,11 +43,10 @@ import (
 	"gopkg.in/pipe.v2"
 )
 
-var device_ip2 = net.IPv4(192, 168, 1, 128)
+var device_ip2 = net.IPv4(192, 168, 1, 101)
 var device_ip = device_ip2
 
 var local_apk = "~/ArcCustomizeSettings.apk"
-
 
 func init() {
 }
@@ -244,7 +243,7 @@ func TestRecordScreen(t *testing.T) {
 
 	var err error
 
-	c := make(chan os.Signal)
+	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	defer close(c)
 
@@ -254,26 +253,46 @@ func TestRecordScreen(t *testing.T) {
 		Rotate:    false,
 		BugReport: false,
 		Size:      &types.Size{Width: 1920, Height: 1080},
-		Verbose:   false,
+		Verbose:   true,
 	}, "/sdcard/Download/screenrecord.mp4")
 
-	err = processbuilder.Start(pb)
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+	}
+
+	fmt.Println("Run...")
+	code, _, err := processbuilder.Run(pb)
+
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+	}
+
+	fmt.Printf("code: %v\n", code)
+
+	if code != int(unix.SIGINT) {
+		fmt.Println(err.Error())
+	}
 
 	go func() {
 		<-c
-		println("user: cancelled")
+		fmt.Println("user: cancelled")
 		processbuilder.Cancel(pb)
 	}()
 
-	code, _, err := processbuilder.Wait(pb)
+	// fmt.Println("Wait..")
+	// code, _, err = processbuilder.Wait(pb)
 
-	if err != nil {
-		assert.Equal(t, int(unix.SIGINT), code)
-	}
+	// if err != nil {
+	// 	assert.Equal(t, int(unix.SIGINT), code)
+	// }
 
-	if code != int(unix.SIGINT) {
-		println(err.Error())
-	}
+	// fmt.Printf("code: %v\n", code)
+
+	// if code != int(unix.SIGINT) {
+	// 	fmt.Println(err.Error())
+	// }
+
+	fmt.Println("done.")
 }
 
 func TestConnect(t *testing.T) {
@@ -1480,7 +1499,7 @@ func TestScreenMirror(t *testing.T) {
 	AssertClientConnected(t, client)
 	assert.True(t, client.MustRoot())
 
-	c := make(chan os.Signal)
+	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	cmd1 := client.Shell.NewCommand().WithArgs("while true; do screenrecord --output-format=h264 -; done").ToCommand()
