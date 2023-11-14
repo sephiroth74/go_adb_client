@@ -35,6 +35,7 @@ func (s SimplePackageReader) Keys() []string {
 	return []string{
 		"package_name",
 		"version_name",
+		"version_code",
 		"code_path",
 		"first_install_time",
 		"last_update_time",
@@ -91,6 +92,16 @@ func (s SimplePackageReader) ResourcePath() string {
 
 func (s SimplePackageReader) VersionName() string {
 	result, _ := s.getItem("versionName")
+	return result
+}
+
+func (s SimplePackageReader) VersionCode() string {
+	result, _ := s.getItem("versionCode")
+	f := regexp.MustCompile(`^(?P<versionCode>[\d]+)`)
+	m := f.FindStringSubmatch(result)
+	if len(m) == 2 {
+		return m[1]
+	}
 	return result
 }
 

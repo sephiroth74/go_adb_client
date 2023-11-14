@@ -1113,6 +1113,7 @@ func TestDump(t *testing.T) {
 	assert.Equal(t, pkg, parser.PackageName())
 	assert.Equal(t, "1000", parser.UserID())
 	assert.Equal(t, "1.0", parser.VersionName())
+	assert.Equal(t, "1", parser.VersionCode())
 	assert.True(t, len(parser.CodePath()) > 1)
 	assert.True(t, len(parser.TimeStamp()) > 1)
 	assert.True(t, len(parser.LastUpdateTime()) > 1)
