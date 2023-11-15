@@ -184,6 +184,22 @@ func (s Shell) Remove(filename string, force bool) (bool, error) {
 	return result.IsOk(), nil
 }
 
+func (s Shell) RemoveDir(filename string, force bool) (bool, error) {
+	var command string
+	if force {
+		command = fmt.Sprintf("rm -fr %s", filename)
+	} else {
+		command = fmt.Sprintf("rm -r %s", filename)
+	}
+
+	cmd := s.NewCommand().WithArgs(command)
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
+	if err != nil {
+		return false, nil
+	}
+	return result.IsOk(), nil
+}
+
 func (s Shell) Chmod(mode os.FileMode, recursive bool, filename string) error {
 	var sb []string
 	if recursive {
