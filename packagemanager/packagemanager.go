@@ -169,6 +169,15 @@ func (p PackageManager) Install(src string, options *InstallOptions) (process.Ou
 		if options.GrantPermissions {
 			args = append(args, "-g")
 		}
+		if options.Force {
+			args = append(args, "-f")
+		}
+		if options.AllowVersionCodeDowngrade {
+			args = append(args, "-d")
+		}
+		if options.ReplaceExistingApplication {
+			args = append(args, "-r")
+		}
 	}
 	args = append(args, src)
 	cmd := p.Shell.NewCommand().WithArgs("cmd package install").AddArgs(args...)
@@ -352,6 +361,12 @@ type InstallOptions struct {
 	InstallLocation int
 	// -g: grant all runtime permissions
 	GrantPermissions bool
+	// -f: force
+	Force bool
+	// -r replace existing application
+	ReplaceExistingApplication bool
+	// -d: allow version code downgrade
+	AllowVersionCodeDowngrade bool	
 }
 
 type PackageOptions struct {
