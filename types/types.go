@@ -148,7 +148,23 @@ func (m TcpDevice) Name() string {
 }
 
 func (m TcpDevice) String() string {
-	return repr.String(m)
+	line := m.Address().GetSerialAddress()
+	args := []string{}
+
+	if m.name != "" {
+		args = append(args, fmt.Sprintf("name=%s", m.name))
+	}
+
+	if m.macAddress != nil {
+		args = append(args, fmt.Sprintf("mac=%s", m.macAddress.String()))
+	}
+
+	if len(args) > 0 {
+		line += fmt.Sprintf(" (%s)", strings.Join(args, ", "))
+	}
+
+	return line
+
 }
 
 func (m TcpDevice) GetSerialAddress() string {
