@@ -51,9 +51,9 @@ func worker(index int, host string, ch chan *types.TcpDevice, wg *sync.WaitGroup
 	}(conn)
 
 	var remoteAddr = conn.RemoteAddr().String()
-	deviceName, _ := getDeviceName(remoteAddr)
+	deviceName, macAddress, _ := fillDeviceNameAndMacAddress(remoteAddr)
 
-	device, err := types.NewTcpDevice(deviceName, &remoteAddr)
+	device, err := types.NewTcpDevice(deviceName, macAddress, &remoteAddr)
 	if err != nil {
 		ch <- nil
 		return
@@ -61,7 +61,7 @@ func worker(index int, host string, ch chan *types.TcpDevice, wg *sync.WaitGroup
 	ch <- device
 }
 
-func getDeviceName(deviceAddr string) (string, error) {
+func fillDeviceNameAndMacAddress(deviceAddr string) (string, *net.HardwareAddr, error) {
 	slice := strings.Split(deviceAddr, ":")
 
 	if len(slice) == 1 {
@@ -69,12 +69,12 @@ func getDeviceName(deviceAddr string) (string, error) {
 	}
 
 	if len(slice) != 2 {
-		return "", fmt.Errorf("invalid address %s", deviceAddr)
+		return "", nil, fmt.Errorf("invalid address %s", deviceAddr)
 	}
 
 	port, err := strconv.Atoi(slice[1])
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	ip := net.ParseIP(slice[0])
@@ -84,18 +84,34 @@ func getDeviceName(deviceAddr string) (string, error) {
 	}, nil, true)
 
 	device := adbclient.NewDevice(client)
+	device.Client.Conn.Verbose = false
+
 	_, err = device.Client.Connect(1 * time.Second)
 
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	name := device.Name()
-	_, _ = device.Client.Disconnect()
+	macAddress, err := getDeviceMacAddress(device)
 
-	if name != nil {
-		return *name, nil
-	} else {
-		return "", fmt.Errorf("name not found")
+	defer func() {
+		_, _ = device.Client.Disconnect()
+	}()
+
+	return *name, macAddress, nil
+}
+
+func getDeviceMacAddress(device *adbclient.Device) (*net.HardwareAddr, error) {
+	result, err := device.Client.Shell.Cat("/sys/class/net/eth0/address")
+	if err != nil || !result.IsOk() {
+		return nil, err
 	}
+
+	addr, err := net.ParseMAC(result.Output())
+	if err != nil {
+		return nil, err
+	}
+
+	return &addr, nil
 }

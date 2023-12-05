@@ -1277,7 +1277,7 @@ func TestScan(t *testing.T) {
 		defer wg.Done()
 		for remoteAddr := range sc.Results {
 			if remoteAddr != nil {
-				logging.Log.Infof("Device found: %s (name=%s)", remoteAddr.GetSerialAddress(), remoteAddr.Name())
+				logging.Log.Infof("Device found: %s (name=%s, mac=%s)", remoteAddr.GetSerialAddress(), remoteAddr.Name(), remoteAddr.MacAddress().String())
 			}
 		}
 	}()

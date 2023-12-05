@@ -105,12 +105,14 @@ type ScannerDevice interface {
 	GetSerialAddress() string
 	Address() ClientAddr
 	String() string
+	MacAddress() *net.HardwareAddr
 }
 
 type MdnsDevice struct {
 	ScannerDevice
 	name           string
 	ConnectionType string
+	macAddress     *net.HardwareAddr
 	address        ClientAddr
 }
 
@@ -130,11 +132,15 @@ func (m MdnsDevice) Address() ClientAddr {
 	return m.address
 }
 
+func (m MdnsDevice) MacAddress() *net.HardwareAddr {
+	return m.macAddress
+}
 
 type TcpDevice struct {
 	ScannerDevice
-	name    string
-	address ClientAddr
+	name       string
+	macAddress *net.HardwareAddr
+	address    ClientAddr
 }
 
 func (m TcpDevice) Name() string {
@@ -153,6 +159,10 @@ func (m TcpDevice) Address() ClientAddr {
 	return m.address
 }
 
+func (m TcpDevice) MacAddress() *net.HardwareAddr {
+	return m.macAddress
+}
+
 func NewMdnsDevice(name string, ctype string, addr *string) (*MdnsDevice, error) {
 	clientAddr, err := NewClientAddress(addr)
 	if err != nil {
@@ -166,7 +176,7 @@ func NewMdnsDevice(name string, ctype string, addr *string) (*MdnsDevice, error)
 	return mdns, nil
 }
 
-func NewTcpDevice(name string, addr *string) (*TcpDevice, error) {
+func NewTcpDevice(name string, macAddress *net.HardwareAddr, addr *string) (*TcpDevice, error) {
 	clientAddr, err := NewClientAddress(addr)
 	if err != nil {
 		return nil, err
@@ -175,6 +185,7 @@ func NewTcpDevice(name string, addr *string) (*TcpDevice, error) {
 	d := new(TcpDevice)
 	d.address = *clientAddr
 	d.name = name
+	d.macAddress = macAddress
 	return d, nil
 }
 
