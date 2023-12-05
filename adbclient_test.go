@@ -1277,7 +1277,7 @@ func TestScan(t *testing.T) {
 		defer wg.Done()
 		for remoteAddr := range sc.Results {
 			if remoteAddr != nil {
-				logging.Log.Infof("Device found: %s", *remoteAddr)
+				logging.Log.Infof("Device found: %s (name=%s)", remoteAddr.GetSerialAddress(), remoteAddr.Name)
 			}
 		}
 	}()
@@ -1291,7 +1291,7 @@ func TestScan(t *testing.T) {
 	services, _ := client.Mdns.Services()
 
 	for _, service := range services {
-		logging.Log.Infof("Mdns found: %s", service.Address.GetSerialAddress())
+		logging.Log.Infof("Mdns found: %s (name=%s)", service.Address.GetSerialAddress(), service.Name)
 	}
 	logging.Log.Infof("Done")
 }

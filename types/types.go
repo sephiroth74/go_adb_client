@@ -115,6 +115,21 @@ func (m MdnsDevice) String() string {
 	return repr.String(m)
 }
 
+
+type TcpDevice struct {
+	Serial
+	Name    string
+	Address ClientAddr
+}
+
+func (m TcpDevice) String() string {
+	return repr.String(m)
+}
+
+func (m TcpDevice) GetSerialAddress() string {
+	return m.Address.IP.String()
+}
+
 func NewMdnsDevice(name string, ctype string, addr *string) (*MdnsDevice, error) {
 	clientAddr, err := NewClientAddress(addr)
 	if err != nil {
@@ -126,6 +141,18 @@ func NewMdnsDevice(name string, ctype string, addr *string) (*MdnsDevice, error)
 	mdns.Name = name
 	mdns.ConnectionType = ctype
 	return mdns, nil
+}
+
+func NewTcpDevice(name string, addr *string) (*TcpDevice, error) {
+	clientAddr, err := NewClientAddress(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	d := new(TcpDevice)
+	d.Address = *clientAddr
+	d.Name = name
+	return d, nil
 }
 
 // endregion MdnsDevice
@@ -347,7 +374,7 @@ const (
 	SettingsSystem SettingsNamespace = "system"
 	SettingsSecure SettingsNamespace = "secure"
 
-	ReconnectToDevice = "device"
+	ReconnectToDevice  = "device"
 	ReconnectToOffline = "offline"
 )
 
