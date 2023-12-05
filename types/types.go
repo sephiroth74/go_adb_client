@@ -100,26 +100,45 @@ func NewDevice(addr *string) (*Device, error) {
 
 // region MdnsDevice
 
+type ScannerDevice interface {
+	Name() string
+	GetSerialAddress() string
+	Address() ClientAddr
+	String() string
+}
+
 type MdnsDevice struct {
-	Serial
-	Name           string
+	ScannerDevice
+	name           string
 	ConnectionType string
-	Address        ClientAddr
+	address        ClientAddr
 }
 
 func (m MdnsDevice) GetSerialAddress() string {
-	return fmt.Sprintf("%s.%s", m.Name, m.ConnectionType)
+	return fmt.Sprintf("%s.%s", m.name, m.ConnectionType)
 }
 
 func (m MdnsDevice) String() string {
 	return repr.String(m)
 }
 
+func (m MdnsDevice) Name() string {
+	return m.name
+}
+
+func (m MdnsDevice) Address() ClientAddr {
+	return m.address
+}
+
 
 type TcpDevice struct {
-	Serial
-	Name    string
-	Address ClientAddr
+	ScannerDevice
+	name    string
+	address ClientAddr
+}
+
+func (m TcpDevice) Name() string {
+	return m.name
 }
 
 func (m TcpDevice) String() string {
@@ -127,7 +146,11 @@ func (m TcpDevice) String() string {
 }
 
 func (m TcpDevice) GetSerialAddress() string {
-	return m.Address.IP.String()
+	return m.address.IP.String()
+}
+
+func (m TcpDevice) Address() ClientAddr {
+	return m.address
 }
 
 func NewMdnsDevice(name string, ctype string, addr *string) (*MdnsDevice, error) {
@@ -137,8 +160,8 @@ func NewMdnsDevice(name string, ctype string, addr *string) (*MdnsDevice, error)
 	}
 
 	mdns := new(MdnsDevice)
-	mdns.Address = *clientAddr
-	mdns.Name = name
+	mdns.address = *clientAddr
+	mdns.name = name
 	mdns.ConnectionType = ctype
 	return mdns, nil
 }
@@ -150,8 +173,8 @@ func NewTcpDevice(name string, addr *string) (*TcpDevice, error) {
 	}
 
 	d := new(TcpDevice)
-	d.Address = *clientAddr
-	d.Name = name
+	d.address = *clientAddr
+	d.name = name
 	return d, nil
 }
 
