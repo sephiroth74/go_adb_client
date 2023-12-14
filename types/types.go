@@ -101,7 +101,7 @@ func NewDevice(addr *string) (*Device, error) {
 // region MdnsDevice
 
 type ScannerDevice interface {
-	Name() string
+	Name() *string
 	GetSerialAddress() string
 	Address() ClientAddr
 	String() string
