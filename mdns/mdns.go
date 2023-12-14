@@ -34,7 +34,7 @@ func (m Mdns) Services() ([]types.MdnsDevice, error) {
 		for i := 1; i < len(lines); i++ {
 			m := r.FindStringSubmatch(lines[i])
 			if len(m) > 3 {
-				device, err := types.NewMdnsDevice(m[1], m[2], &m[3])
+				device, err := types.NewMdnsDevice(&m[1], m[2], &m[3])
 				if err == nil {
 					devices = append(devices, *device)
 				}

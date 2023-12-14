@@ -110,7 +110,7 @@ type ScannerDevice interface {
 
 type MdnsDevice struct {
 	ScannerDevice
-	name           string
+	name           *string
 	ConnectionType string
 	macAddress     *net.HardwareAddr
 	address        ClientAddr
@@ -124,7 +124,7 @@ func (m MdnsDevice) String() string {
 	return repr.String(m)
 }
 
-func (m MdnsDevice) Name() string {
+func (m MdnsDevice) Name() *string {
 	return m.name
 }
 
@@ -138,12 +138,12 @@ func (m MdnsDevice) MacAddress() *net.HardwareAddr {
 
 type TcpDevice struct {
 	ScannerDevice
-	name       string
+	name       *string
 	macAddress *net.HardwareAddr
 	address    ClientAddr
 }
 
-func (m TcpDevice) Name() string {
+func (m TcpDevice) Name() *string {
 	return m.name
 }
 
@@ -151,8 +151,8 @@ func (m TcpDevice) String() string {
 	line := m.Address().GetSerialAddress()
 	args := []string{}
 
-	if m.name != "" {
-		args = append(args, fmt.Sprintf("name=%s", m.name))
+	if m.name != nil {
+		args = append(args, fmt.Sprintf("name=%s", *m.name))
 	}
 
 	if m.macAddress != nil {
@@ -179,7 +179,7 @@ func (m TcpDevice) MacAddress() *net.HardwareAddr {
 	return m.macAddress
 }
 
-func NewMdnsDevice(name string, ctype string, addr *string) (*MdnsDevice, error) {
+func NewMdnsDevice(name *string, ctype string, addr *string) (*MdnsDevice, error) {
 	clientAddr, err := NewClientAddress(addr)
 	if err != nil {
 		return nil, err
@@ -192,7 +192,7 @@ func NewMdnsDevice(name string, ctype string, addr *string) (*MdnsDevice, error)
 	return mdns, nil
 }
 
-func NewTcpDevice(name string, macAddress *net.HardwareAddr, addr *string) (*TcpDevice, error) {
+func NewTcpDevice(name *string, macAddress *net.HardwareAddr, addr *string) (*TcpDevice, error) {
 	clientAddr, err := NewClientAddress(addr)
 	if err != nil {
 		return nil, err
@@ -347,7 +347,7 @@ func (e Extras) String() string {
 
 	if e.Efa != nil && len(e.Efa) > 0 {
 		for k, v := range e.Efa {
-			s = append(s, fmt.Sprintf("--ela %s %s", k, strings.Trim(strings.Replace(fmt.Sprint(v), " ", ",", -1), "[]")))
+			s = append(s, fmt.Sprintf("--efa %s %s", k, strings.Trim(strings.Replace(fmt.Sprint(v), " ", ",", -1), "[]")))
 		}
 	}
 

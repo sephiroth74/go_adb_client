@@ -178,6 +178,9 @@ func (p PackageManager) Install(src string, options *InstallOptions) (process.Ou
 		if options.ReplaceExistingApplication {
 			args = append(args, "-r")
 		}
+		if options.DontKill {
+			args = append(args, "--dont-kill")
+		}
 	}
 	args = append(args, src)
 	cmd := p.Shell.NewCommand().WithArgs("cmd package install").AddArgs(args...)

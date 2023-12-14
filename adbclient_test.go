@@ -1291,7 +1291,11 @@ func TestScan(t *testing.T) {
 	services, _ := client.Mdns.Services()
 
 	for _, service := range services {
-		logging.Log.Infof("Mdns found: %s (name=%s)", service.Address().GetSerialAddress(), service.Name())
+		if service.Name() != nil {
+			logging.Log.Infof("Mdns found: %s (name=%s)", service.Address().GetSerialAddress(), *service.Name())
+		} else {
+			logging.Log.Infof("Mdns found: %s", service.Address().GetSerialAddress())
+		}
 	}
 	logging.Log.Infof("Done")
 }

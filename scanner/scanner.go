@@ -61,7 +61,7 @@ func worker(index int, host string, ch chan *types.TcpDevice, wg *sync.WaitGroup
 	ch <- device
 }
 
-func fillDeviceNameAndMacAddress(deviceAddr string) (string, *net.HardwareAddr, error) {
+func fillDeviceNameAndMacAddress(deviceAddr string) (*string, *net.HardwareAddr, error) {
 	slice := strings.Split(deviceAddr, ":")
 
 	if len(slice) == 1 {
@@ -69,12 +69,12 @@ func fillDeviceNameAndMacAddress(deviceAddr string) (string, *net.HardwareAddr, 
 	}
 
 	if len(slice) != 2 {
-		return "", nil, fmt.Errorf("invalid address %s", deviceAddr)
+		return nil, nil, fmt.Errorf("invalid address %s", deviceAddr)
 	}
 
 	port, err := strconv.Atoi(slice[1])
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 
 	ip := net.ParseIP(slice[0])
@@ -89,7 +89,7 @@ func fillDeviceNameAndMacAddress(deviceAddr string) (string, *net.HardwareAddr, 
 	_, err = device.Client.Connect(1 * time.Second)
 
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 
 	name := device.Name()
@@ -99,7 +99,7 @@ func fillDeviceNameAndMacAddress(deviceAddr string) (string, *net.HardwareAddr, 
 		_, _ = device.Client.Disconnect()
 	}()
 
-	return *name, macAddress, nil
+	return name, macAddress, nil
 }
 
 func getDeviceMacAddress(device *adbclient.Device) (*net.HardwareAddr, error) {
