@@ -121,7 +121,18 @@ func (m MdnsDevice) GetSerialAddress() string {
 }
 
 func (m MdnsDevice) String() string {
-	return repr.String(m)
+	line := m.Address().GetSerialAddress()
+	args := []string{}
+
+	if m.name != nil {
+		args = append(args, fmt.Sprintf("name=%s", *m.name))
+	}
+
+	if len(args) > 0 {
+		line += fmt.Sprintf(" (%s)", strings.Join(args, ", "))
+	}
+
+	return line
 }
 
 func (m MdnsDevice) Name() *string {

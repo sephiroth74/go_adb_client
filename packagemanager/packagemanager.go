@@ -369,7 +369,7 @@ type InstallOptions struct {
 	// -r replace existing application
 	ReplaceExistingApplication bool
 	// -d: allow version code downgrade
-	AllowVersionCodeDowngrade bool	
+	AllowVersionCodeDowngrade bool
 }
 
 type PackageOptions struct {

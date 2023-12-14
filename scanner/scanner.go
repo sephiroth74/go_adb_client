@@ -1,4 +1,5 @@
 package scanner
+
 import (
 	"fmt"
 	"net"
