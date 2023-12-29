@@ -401,33 +401,28 @@ func (c Client) MustRoot() bool {
 	return false
 }
 
-func (c Client) DisableVerity() (string, error) {
+func (c Client) DisableVerity() error {
 	return c.toggleVerity(false)
 }
 
-func (c Client) EnableVerity() (string, error) {
+func (c Client) EnableVerity() error {
 	return c.toggleVerity(true)
 }
 
-func (c Client) toggleVerity(enabled bool) (string, error) {
+func (c Client) toggleVerity(enabled bool) error {
 	if !c.GetIsConnected() {
-		return "", errors.New("not connected")
+		return errors.New("not connected")
 	}
 
 	if !c.GetIsRoot() {
-		return "", errors.New("must be root")
+		return errors.New("must be root")
 	}
-
-	var cmd string
 
 	if enabled {
-		cmd = "enable-verity"
+		return c.Shell.EnableVerity()
 	} else {
-		cmd = "disable-verity"
+		return c.Shell.DisableVerity()
 	}
-
-	output, err := process.SimpleOutput(c.NewAdbCommand().WithCommand(cmd), c.Conn.Verbose)
-	return output.Output(), err
 }
 
 type InstallOptions struct {

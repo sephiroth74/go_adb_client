@@ -1627,7 +1627,6 @@ func TestChangeVerityStatus(t *testing.T) {
 	assert.Nil(t, err)
 	logging.Log.Debugf("verity enabled: %t", verity_enabled)
 
-
 	if verity_enabled {
 		logging.Log.Debug("we will disable verity")
 		err = client.Shell.DisableVerity()
