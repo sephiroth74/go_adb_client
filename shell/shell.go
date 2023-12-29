@@ -63,6 +63,101 @@ func (s Shell) Which(command string) (string, error) {
 	return result.Output(), nil
 }
 
+func (s Shell) GetCommand(command string) (string, error) {
+	cmd := s.NewCommand().WithArgs("command", "-v", command)
+	result, err := process.SimpleOutput(cmd, s.Conn.Verbose)
+	if err != nil {
+		return "", err
+	}
+
+	if !result.IsOk() {
+		return "", result.NewError()
+	}
+
+	return strings.TrimSpace(result.Output()), nil
+}
+
+func (s Shell) HasCommand(command string) (bool, error) {
+	result, err := s.GetCommand(command)
+	if err != nil {
+		return false, err
+	}
+
+	if len(result) < 1 {
+		return false, fmt.Errorf("command %s not found", command)
+	} else {
+		return true, nil
+	}
+}
+
+func (s Shell) CheckAvbctl() error {
+	status, err := s.HasCommand("avbctl")
+	if err != nil {
+		return err
+	}
+
+	if !status {
+		return fmt.Errorf("avbctl not found")
+	}
+
+	return nil
+}
+
+func (s Shell) GetVerityStatus() (bool, error) {
+	err := s.CheckAvbctl()
+	if err != nil {
+		return false, err
+	}
+
+	status, err := process.SimpleOutput(s.NewCommand().WithArgs("avbctl", "get-verity"), s.Conn.Verbose)
+
+	if err != nil {
+		return false, err
+	}
+
+	if status.IsOk() {
+		return strings.Contains(status.Output(), "enabled"), nil
+	} else {
+		return false, status.NewError()
+	}
+}
+
+func (s Shell) DisableVerity() error {
+	err := s.CheckAvbctl()
+	if err != nil {
+		return err
+	}
+
+	status, err := process.SimpleOutput(s.NewCommand().WithArgs("avbctl", "disable-verity"), s.Conn.Verbose)
+	if err != nil {
+		return err
+	}
+
+	if !status.IsOk() {
+		return status.NewError()
+	}
+
+	return nil
+}
+
+func (s Shell) EnableVerity() error {
+	err := s.CheckAvbctl()
+	if err != nil {
+		return err
+	}
+
+	status, err := process.SimpleOutput(s.NewCommand().WithArgs("avbctl", "enable-verity"), s.Conn.Verbose)
+	if err != nil {
+		return err
+	}
+
+	if !status.IsOk() {
+		return status.NewError()
+	}
+
+	return nil
+}
+
 // GetProp ExecuteWithTimeout the command "adb shell getprop key" and returns its value if found, nil otherwise
 // Deprecated use GetPropValue instead
 func (s Shell) GetProp(key string) *string {

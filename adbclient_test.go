@@ -43,7 +43,7 @@ import (
 	"gopkg.in/pipe.v2"
 )
 
-var device_ip2 = net.IPv4(192, 168, 1, 101)
+var device_ip2 = net.IPv4(192, 168, 1, 3)
 var device_ip = device_ip2
 
 var local_apk = "~/ArcCustomizeSettings.apk"
@@ -58,8 +58,6 @@ func NewClient() *adbclient.Client {
 func AssertClientConnected(t *testing.T, client *adbclient.Client) {
 	logger := log.New(os.Stderr)
 	logger.Warn("chewy!", "butter", true)
-
-	logging.Log.Info("Hello World!")
 
 	result, err := client.Connect(5 * time.Second)
 	assert.Nil(t, err, "Error connecting to %s", client.Address.String())
@@ -1608,4 +1606,57 @@ func TestStartService(t *testing.T) {
 	var device = adbclient.NewDevice(client)
 	_, err := device.ActivityManager().StartService(intent)
 	assert.Nil(t, err)
+}
+
+func TestGetVerityStatus(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+	status, err := client.Shell.GetVerityStatus()
+	assert.Nil(t, err)
+	logging.Log.Infof("verity enabled: %t", status)
+}
+
+func TestChangeVerityStatus(t *testing.T) {
+	var client = NewClient()
+	AssertClientConnected(t, client)
+
+	err := client.Root()
+	assert.Nil(t, err)
+
+	verity_enabled, err := client.Shell.GetVerityStatus()
+	assert.Nil(t, err)
+	logging.Log.Debugf("verity enabled: %t", verity_enabled)
+
+
+	if verity_enabled {
+		logging.Log.Debug("we will disable verity")
+		err = client.Shell.DisableVerity()
+		assert.Nil(t, err)
+	} else {
+		logging.Log.Debug("we will enable verity")
+		err = client.Shell.EnableVerity()
+		assert.Nil(t, err)
+	}
+
+	result, err := client.Reboot()
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+
+	result, err = client.WaitForDevice(2 * time.Minute)
+	assert.Nil(t, err)
+	assert.True(t, result.IsOk())
+
+	conn, err := client.IsConnected()
+	assert.Nil(t, err)
+	assert.True(t, conn)
+
+	err = client.Root()
+	assert.Nil(t, err)
+
+	verity_enabled2, err := client.Shell.GetVerityStatus()
+	assert.Nil(t, err)
+	logging.Log.Debugf("verity is now enabled: %t", verity_enabled2)
+
+	assert.NotEqual(t, verity_enabled, verity_enabled2)
+
 }
